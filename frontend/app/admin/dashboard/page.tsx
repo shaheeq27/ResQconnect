@@ -2,19 +2,52 @@
 import { useState } from "react";
 import Link from "next/link";
 import {ShieldCheck,Users,UserCheck,UserX,Clock,CheckCircle,XCircle,LogOut,Search,MapPin,Mail,Phone,Briefcase,Menu,X,} from "lucide-react";
+import { useEffect } from "react";
+import { apiRequest } from "../../../lib/api";
 type ApplicationStatus = "Pending" | "Approved" | "Rejected";
 type ManagerApplication = {id: number;name: string;email: string;phone: string;occupation: string;department: string;designation: string;location: string;status: ApplicationStatus;};
-const initialApplications: ManagerApplication[] = [{id: 1,name: "Rahul Sharma",email: "rahul@example.com",phone: "+91 9876543210",occupation: "Emergency Coordinator",department: "Emergency Services",designation: "Field Coordinator",location: "Hyderabad",status: "Pending",},
-                              {id: 2,name: "Priya Reddy",email: "priya@example.com",phone: "+91 9123456780",occupation: "Social Worker",department: "Community Support",designation: "Support Officer",location: "Bangalore",status: "Pending",},
-                              {id: 3,name: "Arjun Kumar",email: "arjun@example.com",phone: "+91 9988776655",occupation: "Disaster Response Officer",department: "Disaster Management",designation: "Response Officer",location: "Chennai",status: "Pending",},];
 export default function AdminDashboard() {
-  const [applications, setApplications] =useState<ManagerApplication[]>(initialApplications);
+  const [applications, setApplications] =useState<ManagerApplication[]>([]);
   const [selectedApplication, setSelectedApplication] =useState<ManagerApplication | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const approveApplication = (id: number) => {setApplications((current) =>current.map((application) =>application.id === id? { ...application, status: "Approved" }: application));
-  setSelectedApplication(null);};
-  const rejectApplication = (id: number) => {setApplications((current) =>current.map((application) =>application.id === id? { ...application, status: "Rejected" }: application));setSelectedApplication(null);};
+  const [error, setError] = useState("");
+  const loadApplications = async () => {
+    try {
+      const data = await apiRequest("/admin/managers", {}, localStorage.getItem("token"));
+      setApplications(data.managers.map((manager: { id: number; name: string; email: string; phone: string; occupation: string; address: string; verification_status: string }) => ({
+        id: manager.id,
+        name: manager.name,
+        email: manager.email,
+        phone: manager.phone,
+        occupation: manager.occupation || "Manager applicant",
+        department: "HelpBridge",
+        designation: "Manager applicant",
+        location: manager.address || "Not provided",
+        status: manager.verification_status === "verified" ? "Approved" : manager.verification_status === "rejected" ? "Rejected" : "Pending",
+      })));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load manager applications.");
+    }
+  };
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => {
+      void loadApplications();
+    }, 0);
+
+    return () => window.clearTimeout(initialLoad);
+  }, []);
+  const updateApplication = async (id: number, status: "verified" | "rejected") => {
+    try {
+      await apiRequest(`/admin/managers/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }, localStorage.getItem("token"));
+      setApplications((current) => current.map((application) => application.id === id ? { ...application, status: status === "verified" ? "Approved" : "Rejected" } : application));
+      setSelectedApplication(null);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Unable to update application.");
+    }
+  };
+  const approveApplication = (id: number) => { void updateApplication(id, "verified"); };
+  const rejectApplication = (id: number) => { void updateApplication(id, "rejected"); };
   const filteredApplications = applications.filter((application) =>`${application.name} ${application.email} ${application.location}`.toLowerCase().includes(searchTerm.toLowerCase()));
   const pendingCount = applications.filter((application) => application.status === "Pending").length;
   const approvedCount = applications.filter((application) => application.status === "Approved").length;
@@ -79,6 +112,7 @@ export default function AdminDashboard() {
               <p className="font-semibold text-slate-800">Administrator</p>
             </div>
           </div>
+          {error && <p role="alert" className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard title="Total Applications" value={applications.length} icon={<Users size={22} />}/>
             <StatCard title="Pending" value={pendingCount} icon={<Clock size={22} />}/>

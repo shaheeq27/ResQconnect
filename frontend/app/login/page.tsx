@@ -148,6 +148,9 @@ export default function LoginPage() {
                 <p className="mt-3"> Want to become a Manager?{" "}
                     <Link href="/manager_register" className="font-bold text-emerald-600 hover:text-emerald-700"> Apply for Manager Access</Link>
                 </p>
+                <p className="mt-3"> First administrator?{" "}
+                  <Link href="/admin/setup" className="font-bold text-emerald-600 hover:text-emerald-700">Set up Admin Access</Link>
+                </p>
               </div>
             </div>
           </div>

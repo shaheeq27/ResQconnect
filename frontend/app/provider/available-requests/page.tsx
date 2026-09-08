@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import {
@@ -945,12 +946,14 @@ function FilterButton({
   onClick: () => void;
   icon?: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <button
       onClick={onClick}
       className={`flex h-11 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition ${
-        active
+        isActive
           ? "border-blue-500 bg-blue-50 text-blue-600"
           : "border-slate-200 text-slate-600 hover:bg-slate-50"
       }`}
@@ -973,7 +976,6 @@ function SidebarItem({
   href,
   icon,
   label,
-  active = false,
   badge,
 }: {
   href: string;

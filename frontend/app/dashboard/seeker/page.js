@@ -148,7 +148,7 @@ export default function SeekerDashboard() {
           </div>
           <span className="text-lg font-bold text-blue-600">HelpBridge</span>
         </div>
-        <Link href="/notifications" className="relative text-slate-600">
+        <Link href="/user/notifications" className="relative text-slate-600">
           <Bell size={22} />
           <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
             {requests.length > 0 ? 1 : 0}
@@ -204,13 +204,13 @@ export default function SeekerDashboard() {
             text="My Requests"
           />
           <SidebarItem
-            href="/notifications"
+            href="/user/notifications"
             icon={<Bell size={20} />}
             text="Notifications"
             badge={requests.length > 0 ? "1" : undefined}
           />
           <SidebarItem
-            href="/profile"
+            href="/user/profile"
             icon={<User size={20} />}
             text="Profile"
           />
@@ -231,7 +231,10 @@ export default function SeekerDashboard() {
         <header className="hidden h-20 items-center justify-between border-b bg-white px-8 lg:flex">
           <div />
           <div className="flex items-center gap-6">
-            <Link href="/notifications" className="relative text-slate-600">
+            <Link
+              href="/user/notifications"
+              className="relative text-slate-600"
+            >
               <Bell size={23} />
               <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                 {requests.length > 0 ? 1 : 0}
@@ -451,7 +454,7 @@ export default function SeekerDashboard() {
                     color="green"
                   />
                   <QuickAction
-                    href="/notifications"
+                    href="/user/notifications"
                     icon={<Bell size={18} />}
                     title="View alerts"
                     color="purple"
@@ -471,9 +474,12 @@ export default function SeekerDashboard() {
                     </p>
                   </div>
                 </div>
-                <button className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+                <a
+                  href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@helpbridge.com"}`}
+                  className="mt-5 inline-block w-full rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
+                >
                   Contact support
-                </button>
+                </a>
               </div>
             </aside>
           </div>

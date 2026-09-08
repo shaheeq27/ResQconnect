@@ -1,0 +1,54 @@
+const { findUserById, updateUserProfile } = require("../models/userModels");
+
+const getProfile = async (req, res) => {
+  try {
+    const user = await findUserById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User profile not found" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    return res.status(500).json({ message: "Failed to load profile" });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const { name, phone, occupation, blood_group, address } = req.body;
+
+    if (!name?.trim() || !phone?.trim()) {
+      return res.status(400).json({ message: "Name and phone are required" });
+    }
+
+    const user = await updateUserProfile(req.user.id, {
+      name: name.trim(),
+      phone: phone.trim(),
+      occupation: occupation?.trim() || null,
+      blood_group: blood_group?.trim() || null,
+      address: address?.trim() || null,
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User profile not found" });
+    }
+
+    return res
+      .status(200)
+      .json({ message: "Profile updated successfully", user });
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    if (error.code === "23505") {
+      return res
+        .status(409)
+        .json({ message: "That phone number is already registered." });
+    }
+
+    return res.status(500).json({ message: "Failed to update profile" });
+  }
+};
+
+module.exports = { getProfile, updateProfile };

@@ -1,10 +1,60 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {HeartHandshake,User,Mail,Phone,Lock,Eye,EyeOff,Briefcase,Building2,MapPin,FileText,ShieldCheck,} from "lucide-react";
+import { apiRequest } from "../../lib/api";
 export default function ManagerRegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", occupation: "", organization: "", designation: "", workLocation: "", reason: "", password: "", confirmPassword: "" });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const updateField = (field: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError("Please confirm the manager terms and conditions.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await apiRequest("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          password: form.password,
+          occupation: form.occupation,
+          address: form.workLocation,
+          role: "manager",
+        }),
+      });
+      setSuccess("Manager application submitted. An administrator must approve your account before access is granted.");
+      setTimeout(() => router.push("/login"), 1400);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Manager registration failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-6xl overflow-hidden rounded-3xl bg-white shadow-2xl">
@@ -60,33 +110,33 @@ export default function ManagerRegisterPage() {
                 </div>
               </div>
 
-              <form className="space-y-7">
+              <form className="space-y-7" onSubmit={handleSubmit}>
                 <section>
                   <h3 className="mb-4 text-lg font-bold text-slate-800"> Personal Information</h3>
                   <div className="grid gap-5 sm:grid-cols-2">
-                    <InputField label="Full Name" placeholder="Enter your full name" icon={<User size={18} />}type="text"/>
-                    <InputField label="Email" placeholder="Enter your email" icon={<Mail size={18} />}type="email"/>
-                    <InputField label="Phone Number" placeholder="Enter your phone number" icon={<Phone size={18} />}type="tel"/>
-                    <InputField label="Occupation" placeholder="Enter your occupation" icon={<Briefcase size={18} />}type="text"/>
+                    <InputField label="Full Name" placeholder="Enter your full name" icon={<User size={18} />}type="text" value={form.name} onChange={(value) => updateField("name", value)} required/>
+                    <InputField label="Email" placeholder="Enter your email" icon={<Mail size={18} />}type="email" value={form.email} onChange={(value) => updateField("email", value)} required/>
+                    <InputField label="Phone Number" placeholder="Enter your phone number" icon={<Phone size={18} />}type="tel" value={form.phone} onChange={(value) => updateField("phone", value)} required/>
+                    <InputField label="Occupation" placeholder="Enter your occupation" icon={<Briefcase size={18} />}type="text" value={form.occupation} onChange={(value) => updateField("occupation", value)} required/>
                   </div>
                 </section>
                 <section>
                   <h3 className="mb-4 text-lg font-bold text-slate-800">Professional Information</h3>
                   <div className="grid gap-5 sm:grid-cols-2">
-                    <InputField label="Organization / Department" placeholder="Enter organization" icon={<Building2 size={18} />} type="text"/>
-                    <InputField label="Designation" placeholder="Enter designation" icon={<Briefcase size={18} />}type="text"/>
+                    <InputField label="Organization / Department" placeholder="Enter organization" icon={<Building2 size={18} />} type="text" value={form.organization} onChange={(value) => updateField("organization", value)} required/>
+                    <InputField label="Designation" placeholder="Enter designation" icon={<Briefcase size={18} />}type="text" value={form.designation} onChange={(value) => updateField("designation", value)} required/>
                   </div>
                 </section>
                 <section>
                   <h3 className="mb-4 text-lg font-bold text-slate-800">Location</h3>
-                  <InputField label="Work Location / Area" placeholder="Enter your working area" icon={<MapPin size={18} />}type="text"/>
+                    <InputField label="Work Location / Area" placeholder="Enter your working area" icon={<MapPin size={18} />}type="text" value={form.workLocation} onChange={(value) => updateField("workLocation", value)} required/>
                 </section>
                 <section>
                   <h3 className="mb-4 text-lg font-bold text-slate-800">Application Details</h3>
                   <label className="mb-2 block text-sm font-medium text-slate-700">Why do you want to become a HelpBridge Manager?</label>
                   <div className="relative">
                     <FileText size={18} className="absolute left-4 top-4 text-slate-400"/>
-                    <textarea rows={4} placeholder="Explain your experience and reason for applying..." className="w-full resize-none rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
+                    <textarea required rows={4} value={form.reason} onChange={(event) => updateField("reason", event.target.value)} placeholder="Explain your experience and reason for applying..." className="w-full resize-none rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
                   </div>
                 </section>
                 <section>
@@ -96,7 +146,7 @@ export default function ManagerRegisterPage() {
                       <label className="mb-2 block text-sm font-medium text-slate-700">Password</label>
                       <div className="relative">
                         <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"/>
-                        <input type={showPassword ? "text" : "password"} placeholder="Create a password" className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-12 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
+                        <input required minLength={6} value={form.password} onChange={(event) => updateField("password", event.target.value)} type={showPassword ? "text" : "password"} placeholder="Create a password" className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-12 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                       </div>
                     </div>
@@ -105,7 +155,7 @@ export default function ManagerRegisterPage() {
                       <label className="mb-2 block text-sm font-medium text-slate-700">Confirm Password</label>
                       <div className="relative">
                         <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"/>
-                        <input type={showConfirmPassword? "text": "password"}placeholder="Confirm password"
+                        <input required value={form.confirmPassword} onChange={(event) => updateField("confirmPassword", event.target.value)} type={showConfirmPassword? "text": "password"}placeholder="Confirm password"
                           className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-12 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
                           {showConfirmPassword ? (<EyeOff size={18} />) : (<Eye size={18} />)}
@@ -117,11 +167,13 @@ export default function ManagerRegisterPage() {
 
                 <div className="rounded-xl bg-slate-50 p-4">
                   <label className="flex items-start gap-3">
-                    <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600"/>
+                    <input required checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600"/>
                     <span className="text-sm leading-6 text-slate-600">I confirm that the information provided is accurate and I agree to HelpBridge{"'"}sManager Terms and Conditions.</span>
                   </label>
                 </div>
-                <button type="submit" className="w-full rounded-xl bg-emerald-600 py-4 font-bold text-white shadow-lg transition hover:bg-emerald-700">Submit Manager Application</button>
+                {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+                {success && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</p>}
+                <button disabled={loading} type="submit" className="w-full rounded-xl bg-emerald-600 py-4 font-bold text-white shadow-lg transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">{loading ? "Submitting Application..." : "Submit Manager Application"}</button>
                 <p className="text-center text-sm text-slate-500">Already have an account?{" "}
                   <Link href="/login" className="font-bold text-emerald-600">Login</Link>
                 </p>
@@ -133,13 +185,13 @@ export default function ManagerRegisterPage() {
     </main>
   );
 }
-function InputField({ label,placeholder,icon,type,}: {label: string;placeholder: string;icon: React.ReactNode;type: string;}) {
+function InputField({ label,placeholder,icon,type,value,onChange,required,}: {label: string;placeholder: string;icon: React.ReactNode;type: string;value?: string;onChange?: (value: string) => void;required?: boolean;}) {
   return (
     <div>
       <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
       <div className="relative">
         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>
-        <input type={type} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
+        <input required={required} type={type} value={value} onChange={onChange ? (event) => onChange(event.target.value) : undefined} placeholder={placeholder} className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"/>
       </div>
     </div>
   );

@@ -1,78 +1,97 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import {LayoutDashboard,Siren,ClipboardCheck,Activity,Users,Bell,BarChart3,User,Settings,LogOut,Menu,X,ChevronDown,ChevronRight,MapPin,Eye,CheckCircle,Clock,ShieldCheck,
-         AlertTriangle,Car,Droplets,Waves,HeartPulse,Flame,Headphones,CalendarDays,} from "lucide-react";
+import { useEffect, useState } from "react";
+import { apiRequest } from "../../../lib/api";
+import {
+  Siren, ClipboardCheck, Activity, Users, BarChart3, ChevronRight, MapPin, Eye, CheckCircle, Clock, ShieldCheck,
+  AlertTriangle, CalendarDays,
+} from "lucide-react";
+
+type PendingRequest = {
+  id: number;
+  title: string;
+  description: string | null;
+  address: string | null;
+  emergency_type: string | null;
+  created_at: string;
+};
+
+type DashboardStats = {
+  pending_count: number;
+  active_count: number;
+  verified_count: number;
+  completed_count: number;
+  total_count: number;
+  unread_notifications: number;
+};
+
+function formatRelativeTime(createdAt: string) {
+  const elapsedMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000),
+  );
+
+  if (elapsedMinutes < 1) return "Just now";
+  if (elapsedMinutes < 60) return `${elapsedMinutes} min ago`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${elapsedHours} hr ago`;
+
+  return `${Math.floor(elapsedHours / 24)} days ago`;
+}
+
+function EmergencyIcon({ type }: { type: string | null }) {
+  const iconProps = { size: 20 };
+
+  if (type?.toLowerCase().includes("medical")) return <Activity {...iconProps} />;
+  if (type?.toLowerCase().includes("fire")) return <AlertTriangle {...iconProps} />;
+  return <Siren {...iconProps} />;
+}
 export default function ManagerDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    const loadData = async () => {
+      try {
+        const [statsData, requestsData] = await Promise.all([
+          apiRequest("/manager/dashboard/stats", {}, token),
+          apiRequest("/manager/requests/pending", {}, token),
+        ]);
+        setStats(statsData);
+        setPendingRequests(requestsData.requests || []);
+      } catch (requestError) {
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to load dashboard data.",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const formattedDate = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date());
+
+  const formattedTime = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date());
   return (
-    <div className="min-h-screen bg-[#f7f9fc]">
-      <aside className={`fixed left-0 top-0 z-50 h-screen w-[260px]bg-[#082b63] text-white transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
-        <div className="flex h-[90px] items-center border-b border-white/10 px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[#0b63e5]">
-              <ShieldCheck size={27} />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">HelpBridge</h1>
-              <p className="text-xs text-blue-200"> Manager Panel </p>
-            </div>
-          </div>
-           <button>
-            <X size={22} />
-          </button>
-        </div>
-        <nav className="px-4 py-6">
-          <SidebarItem href="/manager/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard"  active/>
-          <SidebarItem  href="/manager/emergency-requests" icon={<Siren size={20} />} label="Emergency Requests"badge="12"/>
-          <SidebarItem href="/manager/verification" icon={<ClipboardCheck size={20} />} label="Pending Verification" badge="8" />
-          <SidebarItem href="/manager/active-requests" icon={<Activity size={20} />}label="Active Requests" badge="5" /> 
-          <SidebarItem href="/manager/completed-requests" icon={<CheckCircle size={20} />} label="Completed Requests" />
-          <SidebarItem href="/manager/providers" icon={<Users size={20} />}  label="Providers"/>
-          <SidebarItem href="/manager/notifications" icon={<Bell size={20} />} label="Notifications" badge="7" />
-          <SidebarItem href="/manager/reports"icon={<BarChart3 size={20} />} label="Reports & Analytics"/>
-          <SidebarItem href="/manager/profile" icon={<User size={20} />}  label="Profile" />
-          <SidebarItem href="/manager/settings" icon={<Settings size={20} />} label="Settings"/>
-        </nav>
-        <div className="absolute bottom-[125px] left-4 right-4 border-t border-white/10 pt-4">
-          <Link href="/login" className="flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium text-red-300 transition hover:bg-white/10" >
-            <LogOut size={20} />
-            Logout
-          </Link>
-        </div>
-        <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-white/10 p-4 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white/15">
-            <Headphones size={22} />
-          </div>
-          <p className="mt-3 font-semibold">Need Help? </p>
-          <p className="mt-1 text-xs text-blue-200">Contact support anytime </p>
-          <button className="mt-3 w-full rounded-lg bg-[#1769e8] py-2 text-sm font-semibold hover:bg-[#0d5ed7]"> Contact Support</button>
-        </div>
-      </aside>
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)}/>)}
-      <main className="lg:ml-[260px]">
-        <header className="flex h-[90px] items-center justify-between border-b bg-white px-5 sm:px-8">
-          <button onClick={() => setSidebarOpen(true)} className="text-slate-600 lg:hidden">
-            <Menu size={25} />
-          </button>
-          <div className="ml-auto flex items-center gap-5">
-            <button className="relative text-slate-600">
-              <Bell size={23} />
-              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">7</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700"> M</div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-bold text-slate-800"> Manager  </p>
-                <p className="text-xs text-slate-500"> HelpBridge Manager </p>
-              </div>
-              <ChevronDown  size={18}className="text-slate-500" />
-            </div>
-          </div>
-        </header>
-        <div className="p-5 sm:p-8">
+    <>
           <div className="mb-7 flex flex-col justify-between gap-5 xl:flex-row xl:items-center">
             <div>
               <h2 className="text-3xl font-bold text-[#12234b]">Welcome back, Manager!</h2>
@@ -83,16 +102,16 @@ export default function ManagerDashboard() {
                 <CalendarDays size={21} className="text-slate-600" />
               </div>
               <div>
-                <p className="text-sm font-bold text-slate-800"> August 13, 2026</p>
-                <p className="text-xs text-slate-500"> Thursday, 10:30 AM </p>
+                <p className="text-sm font-bold text-slate-800">{formattedDate}</p>
+                <p className="text-xs text-slate-500">{formattedTime}</p>
               </div>
             </div>
           </div>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard title="Pending Verification" value="12"  description="Requires your attention" icon={<ClipboardCheck size={25} />} color="red" />
-            <StatCard title="Active Requests" value="5" description="Currently in progress"icon={<Activity size={25} />}  color="blue" />
-            <StatCard title="Assigned Requests" value="9" description="Provider assigned" icon={<Users size={25} />} color="green"/>
-            <StatCard title="Completed Requests" value="48" description="This month" icon={<CheckCircle size={25} />} color="purple"  />
+            <StatCard title="Pending Verification" value={isLoading ? "-" : String(stats?.pending_count ?? 0)} description="Requires your attention" icon={<ClipboardCheck size={25} />} color="red" />
+            <StatCard title="Active Requests" value={isLoading ? "-" : String(stats?.active_count ?? 0)} description="Currently in progress" icon={<Activity size={25} />} color="blue" />
+            <StatCard title="Assigned Requests" value={isLoading ? "-" : String(stats?.verified_count ?? 0)} description="Provider assigned" icon={<Users size={25} />} color="green" />
+            <StatCard title="Completed Requests" value={isLoading ? "-" : String(stats?.completed_count ?? 0)} description="This month" icon={<CheckCircle size={25} />} color="purple" />
           </div>
 
           <div className="mt-7 grid gap-6 xl:grid-cols-[2fr_1fr]">
@@ -101,49 +120,69 @@ export default function ManagerDashboard() {
                 <div>
                   <h3 className="text-lg font-bold text-[#12234b]">Recent Emergency Requests </h3>
                 </div>
-                <Link href="/manager/emergency-requests" className="text-sm font-semibold text-blue-600 hover:text-blue-700"> View All  </Link>
+                <Link href="/manager/emergency_requests" className="text-sm font-semibold text-blue-600 hover:text-blue-700"> View All  </Link>
               </div>
 
               <div className="divide-y">
-                <RequestItem icon={<Car size={20} />} iconColor="red" title="Accident" description="A person met with road accident" location="Hyderabad, Madhapur"
-                  distance="2.4 km" status="Pending" time="10 min ago" />
-                <RequestItem icon={<Droplets size={20} />} iconColor="red"  title="Blood Requirement" description="O+ blood urgently required" location="Hyderabad, Kukatpally" distance="4.1 km" status="Pending"time="25 min ago"/>
-                <RequestItem icon={<Waves size={20} />} iconColor="blue"title="flood Emergency" description="Water level rising in residential area"location="Secunderabad, Bolarum"
-                  distance="5.8 km" status="Verified" time="35 min ago"/>
-                <RequestItem icon={<HeartPulse size={20} />} iconColor="purple" title="Medical Emergency" description="Elderly person needs immediate help" location="Hyderabad, Gachibowli"
-                  distance="3.2 km" status="Pending" time="45 min ago" />
-                <RequestItem icon={<Flame size={20} />} iconColor="orange"  title="Fire Emergency"  description="Fire reported in commercial building" location="Hyderabad, Ameerpet"
-                  distance="6.3 km"status="Verified"time="1 hr ago" />
+                {isLoading && <p className="px-6 py-10 text-center text-sm text-slate-500">Loading emergency requests...</p>}
+                {!isLoading && error && <p className="px-6 py-10 text-center text-sm text-red-600">{error}</p>}
+                {!isLoading && !error && pendingRequests.length === 0 && <p className="px-6 py-10 text-center text-sm text-slate-500">No emergency requests are waiting for verification.</p>}
+                {!isLoading && !error && pendingRequests.map((request) => (
+                  <RequestItem
+                    key={request.id}
+                    icon={<EmergencyIcon type={request.emergency_type} />}
+                    iconColor="red"
+                    title={request.title}
+                    description={request.description || "Emergency assistance requested"}
+                    location={request.address || "Location unavailable"}
+                    distance="--"
+                    status="Pending"
+                    time={formatRelativeTime(request.created_at)}
+                  />
+                ))}
               </div>
             </div>
 
             <div className="space-y-6">
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-[#12234b]"> Request Status Overview</h3>
-                <div className="mt-7 flex items-center justify-center">
-                  <div className="relative flex h-44 w-44 items-center justify-center rounded-full bg-[conic-gradient(#f59e0b_0_40%,#3b82f6_40%_60%,#22c55e_60%_90%,#8b5cf6_90%_100%)]">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white">
-                      <div className="text-center">
-                        <p className="text-xl font-bold text-slate-800"> 74 </p>
-                        <p className="text-[10px] text-slate-500"> Total </p>
+                {stats && (() => {
+                  const total = stats.total_count || 1;
+                  const pendingPct = (stats.pending_count / total) * 100;
+                  const activePct = (stats.active_count / total) * 100;
+                  const verifiedPct = (stats.verified_count / total) * 100;
+                  const p1 = pendingPct;
+                  const p2 = p1 + activePct;
+                  const p3 = p2 + verifiedPct;
+                  return (
+                    <div className="mt-7 flex items-center justify-center">
+                      <div className={`relative flex h-44 w-44 items-center justify-center rounded-full`}
+                        style={{ background: `conic-gradient(#f59e0b 0 ${p1}%,#3b82f6 ${p1}% ${p2}%,#22c55e ${p2}% ${p3}%,#8b5cf6 ${p3}% 100%)` }}>
+                        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white">
+                          <div className="text-center">
+                            <p className="text-xl font-bold text-slate-800">{stats.total_count}</p>
+                            <p className="text-[10px] text-slate-500">Total</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
+                {isLoading && <div className="mt-7 flex justify-center"><div className="h-44 w-44 animate-pulse rounded-full bg-slate-100" /></div>}
                 <div className="mt-7 space-y-3">
-                  <StatusLegend color="bg-amber-500" label="Pending" value="12" />
-                  <StatusLegend color="bg-blue-500" label="Active" value="5"/>
-                  <StatusLegend color="bg-green-500" label="Verified" value="9"/>
-                  <StatusLegend color="bg-purple-500" label="Completed"  value="48" />
+                  <StatusLegend color="bg-amber-500" label="Pending" value={isLoading ? "-" : String(stats?.pending_count ?? 0)} />
+                  <StatusLegend color="bg-blue-500" label="Active" value={isLoading ? "-" : String(stats?.active_count ?? 0)} />
+                  <StatusLegend color="bg-green-500" label="Verified" value={isLoading ? "-" : String(stats?.verified_count ?? 0)} />
+                  <StatusLegend color="bg-purple-500" label="Completed" value={isLoading ? "-" : String(stats?.completed_count ?? 0)} />
                 </div>
               </div>
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-[#12234b]"> Quick Actions </h3>
                 <div className="mt-5 grid grid-cols-2 gap-3">
-                  <QuickAction href="/manager/verification" icon={<ClipboardCheck size={20} />} title="Verify Requests" color="red" />
-                  <QuickAction  href="/manager/providers"icon={<Users size={20} />}  title="View Providers"  color="blue"/>
-                   <QuickAction href="/manager/active-requests" icon={<Activity size={20} />} title="Active Requests" color="green"/>
-                  <QuickAction href="/manager/reports" icon={<BarChart3 size={20} />}   title="Reports"color="purple"/>
+                  <QuickAction href="/manager/pending-verification" icon={<ClipboardCheck size={20} />} title="Verify Requests" color="red" />
+                  <QuickAction href="/manager/providers" icon={<Users size={20} />} title="View Providers" color="blue" />
+                  <QuickAction href="/manager/active-requests" icon={<Activity size={20} />} title="Active Requests" color="green" />
+                  <QuickAction href="/manager/reports" icon={<BarChart3 size={20} />} title="Reports" color="purple" />
                 </div>
                 <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-orange-200 bg-orange-50 py-3 text-sm font-semibold text-orange-700 hover:bg-orange-100">
                   <MapPin size={19} />
@@ -180,68 +219,12 @@ export default function ManagerDashboard() {
               </div>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-function SidebarItem({
-  href,
-  icon,
-  label,
-  active = false,
-  badge,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  badge?: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`
-        mb-1 flex items-center justify-between rounded-lg
-        px-4 py-3 text-sm font-medium
-        transition
-        ${
-          active
-            ? "bg-[#1769e8] text-white"
-            : "text-blue-50 hover:bg-white/10"
-        }
-      `}
-    >
-
-      <span className="flex items-center gap-4">
-
-        {icon}
-
-        {label}
-
-      </span>
-
-      {badge && (
-        <span
-          className={`
-            rounded-full px-2 py-0.5 text-xs font-bold
-            ${
-              active
-                ? "bg-white text-blue-600"
-                : "bg-red-500 text-white"
-            }
-          `}
-        >
-          {badge}
-        </span>
-      )}
-
-    </Link>
+    </>
   );
 }
 
 
-function StatCard({title,value,description,icon,color}: {title: string;value: string;description: string;icon: React.ReactNode;color: "red" | "blue" | "green" | "purple";}) {
+function StatCard({ title, value, description, icon, color }: { title: string; value: string; description: string; icon: React.ReactNode; color: "red" | "blue" | "green" | "purple"; }) {
   const styles = {
     red: {
       bg: "bg-red-50",
@@ -276,14 +259,15 @@ function StatCard({title,value,description,icon,color}: {title: string;value: st
       </div>
       <div className="mt-5 flex items-center justify-between">
         <p className="text-xs text-slate-500"> {description} </p>
-        <ChevronRight size={17}  className="text-slate-400" />
+        <ChevronRight size={17} className="text-slate-400" />
       </div>
     </div>
   );
 }
-function RequestItem({icon,iconColor,title,description,location,distance,status,time,}: {
-  icon: React.ReactNode;iconColor: "red" | "blue" | "purple" | "orange";title: string;description: string;
-  location: string;distance: string;status: "Pending" | "Verified";time: string;}) {
+function RequestItem({ icon, iconColor, title, description, location, distance, status, time, }: {
+  icon: React.ReactNode; iconColor: "red" | "blue" | "purple" | "orange"; title: string; description: string;
+  location: string; distance: string; status: "Pending" | "Verified"; time: string;
+}) {
   const iconStyles = {
     red: "bg-red-50 text-red-500",
     blue: "bg-blue-50 text-blue-500",
@@ -300,7 +284,7 @@ function RequestItem({icon,iconColor,title,description,location,distance,status,
         </div>
       </div>
       <div className="flex min-w-[160px] items-center gap-2">
-        <MapPin size={17}  className="shrink-0 text-blue-500" />
+        <MapPin size={17} className="shrink-0 text-blue-500" />
         <p className="text-xs text-slate-600"> {location}</p>
       </div>
       <p className="min-w-[65px] text-sm font-semibold text-red-500"> {distance}</p>
@@ -324,7 +308,7 @@ function RequestItem({icon,iconColor,title,description,location,distance,status,
     </div>
   );
 }
-function StatusLegend({color,label,value,}: { color: string;label: string;value: string;}) {
+function StatusLegend({ color, label, value, }: { color: string; label: string; value: string; }) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -335,7 +319,7 @@ function StatusLegend({color,label,value,}: { color: string;label: string;value:
     </div>
   );
 }
-function QuickAction({href,icon, title,color}: {href: string;icon: React.ReactNode;title: string;color: "red" | "blue" | "green" | "purple";}) {
+function QuickAction({ href, icon, title, color }: { href: string; icon: React.ReactNode; title: string; color: "red" | "blue" | "green" | "purple"; }) {
   const styles = {
     red: "border-red-100 bg-red-50 text-red-600 hover:bg-red-100",
     blue: "border-blue-100 bg-blue-50 text-blue-600 hover:bg-blue-100",

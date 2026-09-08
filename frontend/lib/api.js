@@ -1,6 +1,6 @@
-const API_URL = "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-/** @param {string} endpoint @param {RequestInit} [options] @param {string|null} [token] */
+/** @param {string} endpoint @param {RequestInit} [options] @param {string|null} [token] @returns {Promise<any>} */
 export const apiRequest = async (endpoint, options = {}, token = null) => {
   const headers = {
     "Content-Type": "application/json",
@@ -11,12 +11,29 @@ export const apiRequest = async (endpoint, options = {}, token = null) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
 
-  const data = await response.json();
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      "Unable to connect to HelpBridge. Please start the backend and try again.",
+    );
+  }
+
+  const responseText = await response.text();
+  let data = {};
+
+  if (responseText) {
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { message: responseText };
+    }
+  }
 
   if (!response.ok) {
     throw new Error(data.message || "Something went wrong");

@@ -39,6 +39,20 @@ const findUserById = async (id) => {
   return result.rows[0];
 };
 
+// Update a user's password
+const updatePassword = async (id, passwordHash) => {
+  const query = `
+        UPDATE users
+        SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING id, name, email, role;
+    `;
+
+  const result = await pool.query(query, [passwordHash, id]);
+
+  return result.rows[0];
+};
+
 // Create a new user
 const createUser = async (userData) => {
   const {
@@ -102,8 +116,37 @@ const createUser = async (userData) => {
   return result.rows[0];
 };
 
+const updateUserProfile = async (id, profile) => {
+  const result = await pool.query(
+    `
+      UPDATE users
+      SET name = $1,
+          phone = $2,
+          occupation = $3,
+          blood_group = $4,
+          address = $5,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $6
+      RETURNING id, name, email, phone, occupation, blood_group, address, role,
+                availability_status, verification_status, created_at;
+    `,
+    [
+      profile.name,
+      profile.phone,
+      profile.occupation,
+      profile.blood_group,
+      profile.address,
+      id,
+    ],
+  );
+
+  return result.rows[0];
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
   createUser,
+  updatePassword,
+  updateUserProfile,
 };

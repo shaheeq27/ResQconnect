@@ -56,10 +56,10 @@ export default function UserDashboard() {
         <header className="hidden h-20 items-center justify-between border-b bg-white px-8 lg:flex">
           <div />
           <div className="flex items-center gap-6">
-            <button className="relative text-slate-600">
+            <Link href="/user/notifications" className="relative text-slate-600">
               <Bell size={23} />
               <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">3</span>
-            </button>
+            </Link>
 
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-600">C</div>
@@ -179,7 +179,7 @@ export default function UserDashboard() {
                     <p className="text-sm text-emerald-700">Contact our support team.</p>
                   </div>
                 </div>
-                <button className="mt-5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Contact Support</button>
+                <a href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@helpbridge.com"}`} className="mt-5 inline-block rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Contact Support</a>
               </div>
             </div>
           </div>

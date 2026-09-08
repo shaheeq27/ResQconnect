@@ -6,6 +6,8 @@ const helmet = require("helmet");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
 const notificationRoutes = require("./routes/notificationRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const adminSetupRoutes = require("./routes/adminSetupRoutes");
 const pool = require("./config/database");
 const app = express();
 const server = http.createServer(app);
@@ -14,6 +16,7 @@ const helpRequestRoutes = require("./routes/helpRequestRoutes");
 const managerRoutes = require("./routes/managerRoutes");
 const providerRoutes = require("./routes/providerRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 const { Server } = require("socket.io");
 const { createNotification } = require("./models/notificationModel");
 const { createMessage } = require("./models/messageModels");
@@ -206,6 +209,9 @@ app.get("/api/health", async (req, res) => {
   }
 });
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/admin-setup", adminSetupRoutes);
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

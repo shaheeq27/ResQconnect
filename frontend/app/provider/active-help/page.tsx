@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -1153,7 +1154,6 @@ function SidebarItem({
   href,
   icon,
   label,
-  active = false,
   badge,
 }: {
   href: string;
@@ -1162,12 +1162,14 @@ function SidebarItem({
   active?: boolean;
   badge?: string;
 }) {
+  const pathname = usePathname();
+  const isActive = pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link
       href={href}
       className={`mb-1 flex items-center justify-between rounded-lg px-4 py-3 text-sm font-medium transition ${
-        active
+        isActive
           ? "bg-blue-600 text-white shadow-lg"
           : "text-blue-50 hover:bg-white/10"
       }`}

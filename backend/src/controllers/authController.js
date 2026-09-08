@@ -1,7 +1,14 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const { findUserByEmail, createUser } = require("../models/userModels");
+const {
+  findUserByEmail,
+  createUser,
+  updatePassword,
+} = require("../models/userModels");
+const { sendPasswordResetEmail } = require("../services/emailService");
+
+const RESET_TOKEN_EXPIRY = "15m";
 
 // ============================
 // REGISTER
@@ -33,7 +40,7 @@ const register = async (req, res) => {
 
     if (existingUser) {
       return res.status(409).json({
-        message: "Email already registered",
+        message: "That email address is already registered.",
       });
     }
 
@@ -60,6 +67,16 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
+
+    if (error.code === "23505") {
+      const duplicateField = error.constraint?.includes("phone")
+        ? "phone number"
+        : "email address";
+
+      return res.status(409).json({
+        message: `That ${duplicateField} is already registered.`,
+      });
+    }
 
     res.status(500).json({
       message: "Registration failed",
@@ -99,6 +116,15 @@ const login = async (req, res) => {
       });
     }
 
+    if (user.role === "manager" && user.verification_status !== "verified") {
+      return res.status(403).json({
+        message:
+          user.verification_status === "rejected"
+            ? "Your manager application was rejected."
+            : "Your manager application is awaiting administrator approval.",
+      });
+    }
+
     // Create JWT
     const token = jwt.sign(
       {
@@ -131,7 +157,97 @@ const login = async (req, res) => {
   }
 };
 
+// ============================
+// REQUEST PASSWORD RESET
+// ============================
+const requestPasswordReset = async (req, res) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await findUserByEmail(email);
+    const response = {
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    };
+
+    if (user) {
+      const resetToken = jwt.sign(
+        { id: user.id, email: user.email, purpose: "password-reset" },
+        process.env.JWT_SECRET,
+        { expiresIn: RESET_TOKEN_EXPIRY },
+      );
+
+      await sendPasswordResetEmail({
+        email: user.email,
+        name: user.name,
+        resetToken,
+      });
+    }
+
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Password reset request error:", error);
+    return res.status(500).json({ message: "Unable to start password reset" });
+  }
+};
+
+// ============================
+// RESET PASSWORD
+// ============================
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res
+        .status(400)
+        .json({ message: "Reset token and password are required" });
+    }
+
+    if (password.length < 6) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res
+        .status(400)
+        .json({ message: "This reset link is invalid or expired" });
+    }
+
+    if (decoded.purpose !== "password-reset") {
+      return res
+        .status(400)
+        .json({ message: "This reset link is invalid or expired" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await updatePassword(decoded.id, passwordHash);
+
+    if (!user) {
+      return res
+        .status(400)
+        .json({ message: "This reset link is invalid or expired" });
+    }
+
+    return res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    console.error("Password reset error:", error);
+    return res.status(500).json({ message: "Unable to reset password" });
+  }
+};
+
 module.exports = {
   register,
   login,
+  requestPasswordReset,
+  resetPassword,
 };
