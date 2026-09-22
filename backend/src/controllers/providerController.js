@@ -4,13 +4,14 @@ const {
   acceptHelpRequest,
   startHelpRequest,
   completeHelpRequest,
+  getProviderRequests,
 } = require("../models/providerModels");
 const { createNotification } = require("../models/notificationModel");
 
 // Get approved requests
 const getAvailableRequests = async (req, res) => {
   try {
-    const requests = await getApprovedRequests();
+    const requests = await getApprovedRequests(req.user.id);
 
     res.status(200).json({
       requests,
@@ -21,6 +22,16 @@ const getAvailableRequests = async (req, res) => {
     res.status(500).json({
       message: "Failed to fetch available requests",
     });
+  }
+};
+
+const getMyRequests = async (req, res) => {
+  try {
+    const requests = await getProviderRequests(req.user.id);
+    res.status(200).json({ requests });
+  } catch (error) {
+    console.error("Get provider requests error:", error);
+    res.status(500).json({ message: "Failed to fetch provider requests" });
   }
 };
 
@@ -164,6 +175,7 @@ const completeRequest = async (req, res) => {
 
 module.exports = {
   getAvailableRequests,
+  getMyRequests,
   completeRequest,
   startRequest,
   getRequestDetails,

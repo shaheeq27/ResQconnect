@@ -31,6 +31,7 @@ import {
   UserRound,
   Phone,
 } from "lucide-react";
+import { ProviderAvailableWorkflow } from "../../../components/ProviderWorkflow";
 
 type RequestType = "Emergency" | "Non-Emergency";
 
@@ -108,7 +109,7 @@ const requests: Request[] = [
   },
 ];
 
-export default function AvailableRequestsPage() {
+function LegacyAvailableRequestsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -946,14 +947,11 @@ function FilterButton({
   onClick: () => void;
   icon?: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
-
   return (
     <button
       onClick={onClick}
       className={`flex h-11 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition ${
-        isActive
+        active
           ? "border-blue-500 bg-blue-50 text-blue-600"
           : "border-slate-200 text-slate-600 hover:bg-slate-50"
       }`}
@@ -976,6 +974,7 @@ function SidebarItem({
   href,
   icon,
   label,
+  active,
   badge,
 }: {
   href: string;
@@ -1057,3 +1056,5 @@ function ShieldIcon() {
     </div>
   );
 }
+
+export default ProviderAvailableWorkflow;

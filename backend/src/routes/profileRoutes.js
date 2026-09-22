@@ -3,6 +3,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const {
   getProfile,
   updateProfile,
+  updateLocation,
 } = require("../controllers/profileController");
 
 const router = express.Router();
@@ -10,5 +11,6 @@ const router = express.Router();
 router.use(authMiddleware);
 router.get("/", getProfile);
 router.patch("/", updateProfile);
+router.patch("/location", updateLocation);
 
 module.exports = router;

@@ -23,6 +23,8 @@ type HelpRequest = {
   status: RequestStatus;
   address: string | null;
   created_at: string;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 };
 
 const statusLabels: Record<RequestStatus, string> = {
@@ -163,7 +165,9 @@ export default function RequestsPage() {
                 <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:gap-6">
                   <span className="inline-flex items-center gap-2"><MapPin size={16} className="text-slate-400" />{request.address || "Location captured"}</span>
                   <span>{new Date(request.created_at).toLocaleString()}</span>
+                  {request.latitude != null && request.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${request.latitude},${request.longitude}`} target="_blank" rel="noreferrer" className="font-semibold text-teal-700">Open map</a>}
                 </div>
+                {request.status === "completed" && <Link href={`/payment?requestId=${request.id}`} className="mt-4 inline-flex rounded-lg bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800">Pay for completed help</Link>}
               </article>
             ))}
           </div>

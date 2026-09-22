@@ -29,14 +29,33 @@ const register = async (req, res) => {
     } = req.body;
 
     // Check required fields
-    if (!name || !email || !phone || !password) {
+    if (!name?.trim() || !email?.trim() || !phone?.trim() || !password) {
       return res.status(400).json({
         message: "Name, email, phone and password are required",
       });
     }
 
+    if (
+      password.length < 8 ||
+      !/[A-Za-z]/.test(password) ||
+      !/\d/.test(password)
+    ) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Password must be at least 8 characters and include a letter and a number",
+        });
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()) || phone.trim().length < 7) {
+      return res
+        .status(400)
+        .json({ message: "Enter a valid email address and phone number" });
+    }
+
     // Check if email already exists
-    const existingUser = await findUserByEmail(email);
+    const existingUser = await findUserByEmail(email.trim().toLowerCase());
 
     if (existingUser) {
       return res.status(409).json({
@@ -50,8 +69,8 @@ const register = async (req, res) => {
     // Create user
     const user = await createUser({
       name,
-      email,
-      phone,
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
       password_hash,
       occupation,
       blood_group,
@@ -92,14 +111,14 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Check required fields
-    if (!email || !password) {
+    if (!email?.trim() || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
 
     // Find user
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmail(email.trim().toLowerCase());
 
     if (!user) {
       return res.status(401).json({

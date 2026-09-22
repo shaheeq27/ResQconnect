@@ -5,6 +5,7 @@ const router = express.Router();
 const {
   getAvailableRequests,
   getRequestDetails,
+  getMyRequests,
   acceptRequest,
   startRequest,
   completeRequest,
@@ -27,6 +28,8 @@ router.get(
   providerMiddleware,
   getAvailableRequests,
 );
+
+router.get("/requests/mine", authMiddleware, providerMiddleware, getMyRequests);
 
 // Get request details
 router.get(

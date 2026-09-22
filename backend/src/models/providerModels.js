@@ -1,7 +1,7 @@
 const pool = require("../config/database");
 
 // Get approved requests available for providers
-const getApprovedRequests = async () => {
+const getApprovedRequests = async (providerId) => {
   const query = `
         SELECT
             hr.id,
@@ -22,11 +22,29 @@ const getApprovedRequests = async () => {
             ON hr.requester_id = u.id
         WHERE hr.status = 'approved'
           AND hr.assigned_provider_id IS NULL
+          AND hr.requester_id <> $1
         ORDER BY hr.created_at ASC;
     `;
 
-  const result = await pool.query(query);
+  const result = await pool.query(query, [providerId]);
 
+  return result.rows;
+};
+
+const getProviderRequests = async (providerId) => {
+  const query = `
+    SELECT
+      hr.*,
+      requester.name AS requester_name,
+      requester.phone AS requester_phone,
+      requester.email AS requester_email
+    FROM help_requests hr
+    JOIN users requester ON requester.id = hr.requester_id
+    WHERE hr.assigned_provider_id = $1
+    ORDER BY hr.updated_at DESC;
+  `;
+
+  const result = await pool.query(query, [providerId]);
   return result.rows;
 };
 
@@ -74,8 +92,10 @@ const acceptHelpRequest = async (requestId, providerId) => {
                 status = 'accepted',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $2
-              AND status = 'approved'
-              AND assigned_provider_id IS NULL
+              AND (
+                (status = 'approved' AND assigned_provider_id IS NULL)
+                OR (status = 'assigned' AND assigned_provider_id = $1)
+              )
             RETURNING *;
         `;
 
@@ -95,7 +115,7 @@ const acceptHelpRequest = async (requestId, providerId) => {
                 availability_status = 'busy',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
-              AND role = 'provider'
+              AND role IN ('provider', 'seeker')
             RETURNING id, availability_status;
         `;
 
@@ -155,6 +175,7 @@ const completeHelpRequest = async (requestId, providerId) => {
 
 module.exports = {
   completeHelpRequest,
+  getProviderRequests,
   startHelpRequest,
   getApprovedRequests,
   getApprovedRequestById,

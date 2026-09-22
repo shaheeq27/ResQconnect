@@ -195,7 +195,7 @@ const getProviders = async (req, res) => {
         verification_status,
         created_at
       FROM users
-      WHERE role = 'provider'
+      WHERE role IN ('provider', 'seeker')
       ORDER BY created_at DESC;
     `);
 
@@ -203,6 +203,36 @@ const getProviders = async (req, res) => {
   } catch (error) {
     console.error("Get providers error:", error);
     res.status(500).json({ message: "Failed to fetch providers" });
+  }
+};
+
+const getNearbyProviders = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+        SELECT
+          provider.id, provider.name, provider.phone, provider.occupation,
+          provider.availability_status, provider.verification_status,
+          ROUND((6371 * acos(LEAST(1, GREATEST(-1,
+            cos(radians(request.latitude)) * cos(radians(provider.latitude)) *
+            cos(radians(provider.longitude) - radians(request.longitude)) +
+            sin(radians(request.latitude)) * sin(radians(provider.latitude))
+          ))))::numeric, 2) AS distance_km
+        FROM help_requests request
+        CROSS JOIN users provider
+        WHERE request.id = $1
+          AND provider.role IN ('provider', 'seeker')
+          AND provider.id <> request.requester_id
+          AND (provider.role = 'seeker' OR provider.verification_status = 'verified')
+          AND provider.availability_status = 'available'
+        ORDER BY distance_km ASC;
+      `,
+      [req.params.id],
+    );
+    res.status(200).json({ providers: result.rows });
+  } catch (error) {
+    console.error("Get nearby providers error:", error);
+    res.status(500).json({ message: "Failed to fetch nearby providers" });
   }
 };
 
@@ -281,6 +311,64 @@ const rejectRequest = async (req, res) => {
     res.status(500).json({
       message: "Failed to reject request",
     });
+  }
+};
+
+const assignProvider = async (req, res) => {
+  try {
+    const providerId = Number(req.body.provider_id);
+    if (!Number.isInteger(providerId)) {
+      return res
+        .status(400)
+        .json({ message: "A valid provider_id is required" });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE help_requests hr
+        SET assigned_provider_id = $1, status = 'assigned', updated_at = CURRENT_TIMESTAMP
+        FROM users provider
+        WHERE hr.id = $2
+          AND provider.id = $1
+          AND provider.role IN ('provider', 'seeker')
+          AND provider.id <> hr.requester_id
+          AND (provider.role = 'seeker' OR provider.verification_status = 'verified')
+          AND provider.availability_status = 'available'
+          AND hr.status = 'approved'
+          AND hr.assigned_provider_id IS NULL
+        RETURNING hr.*;
+      `,
+      [providerId, req.params.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(409).json({
+        message: "Request or provider is not available for assignment",
+      });
+    }
+
+    const request = result.rows[0];
+    await createNotification(
+      providerId,
+      request.id,
+      "request_assigned",
+      "New Help Request Assigned",
+      `You have been assigned to help with \"${request.title}\".`,
+    );
+    await createNotification(
+      request.requester_id,
+      request.id,
+      "provider_assigned",
+      "Provider Assigned",
+      "A verified provider has been assigned to your help request.",
+    );
+
+    res
+      .status(200)
+      .json({ message: "Provider assigned successfully", request });
+  } catch (error) {
+    console.error("Assign provider error:", error);
+    res.status(500).json({ message: "Failed to assign provider" });
   }
 };
 
@@ -368,8 +456,10 @@ module.exports = {
   getEmergencyRequestById,
   getProviderByIdOrName,
   getProviders,
+  getNearbyProviders,
   approveRequest,
   rejectRequest,
+  assignProvider,
   completeRequest,
   getDashboardStats,
 };

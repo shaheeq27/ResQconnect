@@ -6,15 +6,19 @@ import {
   Activity,
   ArrowRight,
   Bell,
+  BriefcaseBusiness,
   ChevronRight,
   Clock3,
   ClipboardList,
+  CreditCard,
   Headphones,
+  History,
   Home,
   LogOut,
   MapPin,
   Menu,
   MessageSquare,
+  Settings,
   Siren,
   ShieldCheck,
   User,
@@ -106,6 +110,10 @@ export default function SeekerDashboard() {
       completed,
     };
   }, [requests]);
+
+  const hasCompletedRequest = requests.some(
+    (request) => request.status === "completed",
+  );
 
   if (loading) {
     return (
@@ -204,6 +212,26 @@ export default function SeekerDashboard() {
             text="My Requests"
           />
           <SidebarItem
+            href="/user/history"
+            icon={<History size={20} />}
+            text="Request History"
+          />
+          <SidebarItem
+            href="/user/active-requests"
+            icon={<Activity size={20} />}
+            text="Active Requests"
+          />
+          <SidebarItem
+            href="/user/messages"
+            icon={<MessageSquare size={20} />}
+            text="Messages"
+          />
+          <SidebarItem
+            href="/user/payments"
+            icon={<CreditCard size={20} />}
+            text="Payments"
+          />
+          <SidebarItem
             href="/user/notifications"
             icon={<Bell size={20} />}
             text="Notifications"
@@ -213,6 +241,16 @@ export default function SeekerDashboard() {
             href="/user/profile"
             icon={<User size={20} />}
             text="Profile"
+          />
+          <SidebarItem
+            href="/user/settings"
+            icon={<Settings size={20} />}
+            text="Settings"
+          />
+          <SidebarItem
+            href="/provider/dashboard"
+            icon={<BriefcaseBusiness size={20} />}
+            text="Provider Workspace"
           />
         </nav>
 
@@ -431,6 +469,14 @@ export default function SeekerDashboard() {
 
             <aside className="space-y-6">
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
+                {hasCompletedRequest ? (
+                  <Link
+                    href={`/payment?requestId=${requests.find((request) => request.status === "completed")?.id ?? ""}`}
+                    className="inline-flex items-center rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+                  >
+                    Pay
+                  </Link>
+                ) : null}
                 <h3 className="text-lg font-bold text-slate-900">
                   Quick actions
                 </h3>

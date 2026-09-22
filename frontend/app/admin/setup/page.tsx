@@ -59,7 +59,7 @@ export default function AdminSetupPage() {
           <Field label="Full name" value={form.name} onChange={(value) => update("name", value)} />
           <Field label="Email" type="email" value={form.email} onChange={(value) => update("email", value)} />
           <Field label="Phone" type="tel" value={form.phone} onChange={(value) => update("phone", value)} />
-          <Field label="Password" type="password" minLength={6} value={form.password} onChange={(value) => update("password", value)} />
+          <Field label="Password" type="password" minLength={8} value={form.password} onChange={(value) => update("password", value)} />
           <Field label="Confirm password" type="password" value={form.confirmPassword} onChange={(value) => update("confirmPassword", value)} />
           {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           {message && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}

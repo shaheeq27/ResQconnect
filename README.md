@@ -19,6 +19,49 @@ The platform supports both **emergency SOS requests** and **non-emergency help r
 
 The architecture is designed around modularity, maintainability, scalability, security, performance, reliability, and extensibility.
 
+## Final Runbook
+
+### Start locally
+
+1. Create `backend/.env` from the database settings required by your local PostgreSQL instance. Keep database, SMTP, JWT, and Razorpay secrets out of source control.
+2. Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to enable real checkout. The API starts without them, but payment creation returns a configuration error.
+3. Start the API:
+
+```powershell
+cd backend
+npm install
+npm run dev
+```
+
+4. Start the web app in a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+### Verification commands
+
+```powershell
+cd backend
+npm run test:smoke
+
+cd ..\frontend
+npm run lint
+npm run build
+```
+
+### Completion checklist
+
+- Completed seeker requests link directly to payment.
+- Razorpay orders are created only for the owning seeker after completion and signatures are verified before marking payment successful.
+- Seeker and provider coordinates are stored in PostgreSQL; provider coordinates update while active help is open.
+- Managers see nearby verified providers ordered by calculated distance and can assign one request.
+- Request locations open in Google Maps.
+- Authentication and payment endpoints are rate-limited, API origins are restricted, and request/password inputs are validated.
+- The API health smoke test, frontend lint, and production build are the final pre-demo checks.
+
 ### Core idea
 
 ```text
@@ -115,6 +158,7 @@ These are treated as future expansion areas.
 Two request paths are supported:
 
 **Emergency**
+
 1. Help Seeker creates an SOS request.
 2. Request enters manager verification.
 3. Manager verifies authenticity.
@@ -124,6 +168,7 @@ Two request paths are supported:
 7. Assistance, tracking, communication, completion, and payment follow.
 
 **Non-Emergency**
+
 - Request creation
 - Request editing
 - Request cancellation
@@ -192,12 +237,12 @@ Two request paths are supported:
 
 ## 5. User Roles
 
-| Role | Main Responsibilities |
-|---|---|
-| **Help Seeker** | Create requests, track requests, share location, communicate with provider, make payments, rate/review provider |
+| Role              | Main Responsibilities                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Help Seeker**   | Create requests, track requests, share location, communicate with provider, make payments, rate/review provider      |
 | **Help Provider** | View suitable requests, accept/reject requests, update availability, share location, communicate, provide assistance |
-| **Manager** | Verify emergency requests, approve/reject requests, assign suitable nearby providers, monitor active requests |
-| **Admin** | Manage users/providers, service categories, reports, monitoring, system settings, and administrative operations |
+| **Manager**       | Verify emergency requests, approve/reject requests, assign suitable nearby providers, monitor active requests        |
+| **Admin**         | Manage users/providers, service categories, reports, monitoring, system settings, and administrative operations      |
 
 ---
 
@@ -256,49 +301,56 @@ External services are integrated independently so that individual services can b
 The architecture follows these principles:
 
 ### Modularity
+
 Each major feature is implemented as an independent module.
 
 ### High Cohesion
+
 Each module has one clearly defined responsibility.
 
 ### Low Coupling
+
 Modules communicate through REST APIs and service interfaces instead of directly accessing one another.
 
 ### Reusability
+
 Shared utilities such as validation, authentication middleware, models, and API services can be reused.
 
 ### Separation of Concerns
+
 Presentation, business logic, and data access responsibilities remain separated.
 
 ### Security by Design
+
 Authentication, authorization, validation, encryption, and secure communication are considered from the beginning.
 
 ### Extensibility
+
 New features such as AI recommendations and mobile support can be introduced without major architectural changes.
 
 ---
 
 ## 8. Technology Stack
 
-| Layer | Technology | Role |
-|---|---|---|
-| Frontend | Next.js | React-based web UI and server-side rendering |
-| UI | React | Component-based reusable interface |
-| Styling | Tailwind CSS | Responsive UI development |
-| Backend Runtime | Node.js | JavaScript runtime |
-| Server Framework | Express.js | REST API and backend services |
-| Database | PostgreSQL | Relational storage and ACID-compliant transactions |
-| ORM | Prisma ORM (or Sequelize/TypeORM) | Database access, migrations, and type-safe queries |
-| Authentication | JWT + bcrypt | Authentication and password security |
-| Real-Time | Socket.IO / WebSocket | Chat and instant notifications |
-| Payments | Razorpay | Secure payment processing |
-| Cloud Storage | Cloudinary | Images, documents, and uploaded files |
-| Notifications | Firebase Cloud Messaging | Push notifications |
-| Validation | Zod | Schema-based input validation |
-| API Testing | Postman | REST API testing |
-| Version Control | Git & GitHub | Source control and collaboration |
-| Frontend Deployment | Vercel | Frontend hosting |
-| Backend / DB Deployment | Render / Railway | Backend and PostgreSQL hosting |
+| Layer                   | Technology                        | Role                                               |
+| ----------------------- | --------------------------------- | -------------------------------------------------- |
+| Frontend                | Next.js                           | React-based web UI and server-side rendering       |
+| UI                      | React                             | Component-based reusable interface                 |
+| Styling                 | Tailwind CSS                      | Responsive UI development                          |
+| Backend Runtime         | Node.js                           | JavaScript runtime                                 |
+| Server Framework        | Express.js                        | REST API and backend services                      |
+| Database                | PostgreSQL                        | Relational storage and ACID-compliant transactions |
+| ORM                     | Prisma ORM (or Sequelize/TypeORM) | Database access, migrations, and type-safe queries |
+| Authentication          | JWT + bcrypt                      | Authentication and password security               |
+| Real-Time               | Socket.IO / WebSocket             | Chat and instant notifications                     |
+| Payments                | Razorpay                          | Secure payment processing                          |
+| Cloud Storage           | Cloudinary                        | Images, documents, and uploaded files              |
+| Notifications           | Firebase Cloud Messaging          | Push notifications                                 |
+| Validation              | Zod                               | Schema-based input validation                      |
+| API Testing             | Postman                           | REST API testing                                   |
+| Version Control         | Git & GitHub                      | Source control and collaboration                   |
+| Frontend Deployment     | Vercel                            | Frontend hosting                                   |
+| Backend / DB Deployment | Render / Railway                  | Backend and PostgreSQL hosting                     |
 
 The SADD also mentions **Google Maps API**, **SMTP/Nodemailer**, and **Neon/PostgreSQL hosting** as possible supporting services.
 
@@ -306,14 +358,14 @@ The SADD also mentions **Google Maps API**, **SMTP/Nodemailer**, and **Neon/Post
 
 ## 9. External Integrations
 
-| Service | Purpose |
-|---|---|
-| **PostgreSQL** | Users, help requests, payments, chat history, notifications, and application data |
-| **Razorpay** | Online payment processing |
-| **Firebase Cloud Messaging (FCM)** | Push notifications |
-| **Cloudinary** | Profile images, identity documents, and request-related uploads |
-| **Google Maps API** | Maps, nearby locations, distance calculation, navigation support |
-| **SMTP / Nodemailer** | Email verification and password-reset communication |
+| Service                            | Purpose                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| **PostgreSQL**                     | Users, help requests, payments, chat history, notifications, and application data |
+| **Razorpay**                       | Online payment processing                                                         |
+| **Firebase Cloud Messaging (FCM)** | Push notifications                                                                |
+| **Cloudinary**                     | Profile images, identity documents, and request-related uploads                   |
+| **Google Maps API**                | Maps, nearby locations, distance calculation, navigation support                  |
+| **SMTP / Nodemailer**              | Email verification and password-reset communication                               |
 
 ---
 
@@ -339,6 +391,7 @@ The high-level flow is:
 ### 11.1 Authentication Module
 
 **Responsibilities**
+
 - Registration
 - Login
 - Logout
@@ -347,6 +400,7 @@ The high-level flow is:
 - Role-based authorization
 
 **Key classes**
+
 - `AuthController`
 - `AuthService`
 - `AuthRepository`
@@ -356,12 +410,14 @@ The high-level flow is:
 ### 11.2 User Management Module
 
 **Responsibilities**
+
 - Profile management
 - Profile updates
 - Document upload
 - User information management
 
 **Key classes**
+
 - `UserController`
 - `UserService`
 - `UserRepository`
@@ -370,6 +426,7 @@ The high-level flow is:
 ### 11.3 SOS / Request Management Module
 
 **Responsibilities**
+
 - Create emergency requests
 - Create non-emergency requests
 - Update requests
@@ -378,6 +435,7 @@ The high-level flow is:
 - Maintain request history
 
 **Key classes**
+
 - `SOSController`
 - `SOSService`
 - `SOSRepository`
@@ -386,6 +444,7 @@ The high-level flow is:
 ### 11.4 Emergency Verification Module
 
 **Responsibilities**
+
 - Review emergency SOS requests
 - Verify authenticity
 - Approve or reject requests
@@ -394,6 +453,7 @@ The high-level flow is:
 - Forward approved requests to nearby providers
 
 **Key classes**
+
 - `VerificationController`
 - `VerificationService`
 - `Manager`
@@ -401,6 +461,7 @@ The high-level flow is:
 ### 11.5 Provider Management Module
 
 **Responsibilities**
+
 - View nearby requests
 - Accept/reject requests
 - Update availability
@@ -409,6 +470,7 @@ The high-level flow is:
 - Manage skills/services
 
 **Key classes**
+
 - `ProviderController`
 - `ProviderService`
 - `HelpProvider`
@@ -417,6 +479,7 @@ The high-level flow is:
 ### 11.6 Real-Time Communication Module
 
 **Responsibilities**
+
 - Real-time messaging
 - Message storage
 - Message retrieval
@@ -424,6 +487,7 @@ The high-level flow is:
 - Chat notifications
 
 **Key classes**
+
 - `ChatController`
 - `ChatService`
 - `Chat`
@@ -433,6 +497,7 @@ The high-level flow is:
 ### 11.7 Location & Tracking Module
 
 **Responsibilities**
+
 - Obtain current location
 - Share GPS coordinates
 - Calculate distance
@@ -441,12 +506,14 @@ The high-level flow is:
 - Support navigation
 
 **Key classes**
+
 - `LocationService`
 - `Tracking`
 
 ### 11.8 Payment Module
 
 **Responsibilities**
+
 - Initiate payment
 - Verify payment
 - Store transaction information
@@ -455,12 +522,14 @@ The high-level flow is:
 - Support future refund processing
 
 **Key class**
+
 - `PaymentController`
 - `Payment`
 
 ### 11.9 Notification Module
 
 **Responsibilities**
+
 - SOS alerts
 - Request status updates
 - Chat notifications
@@ -469,12 +538,14 @@ The high-level flow is:
 - Push notifications
 
 **Key class**
+
 - `NotificationService`
 - `Notification`
 
 ### 11.10 Admin Module
 
 **Responsibilities**
+
 - User management
 - Manager/provider management
 - Reports
@@ -484,6 +555,7 @@ The high-level flow is:
 - System settings
 
 **Key class**
+
 - `AdminController`
 - `Admin`
 
@@ -584,6 +656,7 @@ PostgreSQL was selected for:
 #### User
 
 Stores:
+
 - User ID
 - Name
 - Email
@@ -597,6 +670,7 @@ Stores:
 - Verification information
 
 Supported roles:
+
 - Help Seeker
 - Provider
 - Manager
@@ -605,6 +679,7 @@ Supported roles:
 #### SOS_Request
 
 Stores:
+
 - Request ID
 - Help Seeker ID
 - Provider ID
@@ -616,10 +691,12 @@ Stores:
 - Status
 
 Request types:
+
 - Emergency
 - Non-Emergency
 
 Example statuses:
+
 - Pending
 - Approved
 - Assigned
@@ -628,6 +705,7 @@ Example statuses:
 #### Chat
 
 Stores:
+
 - Chat ID
 - Request ID
 - Sender ID
@@ -638,6 +716,7 @@ Stores:
 #### Payment
 
 Stores:
+
 - Payment ID
 - Request ID
 - Amount
@@ -645,11 +724,13 @@ Stores:
 - Payment status
 
 Payment methods include:
+
 - UPI
 - Card
 - Net Banking
 
 Payment states include:
+
 - Pending
 - Success
 - Failed
@@ -657,6 +738,7 @@ Payment states include:
 #### Notification
 
 Stores:
+
 - Notification ID
 - User ID
 - Title
@@ -710,15 +792,15 @@ Notification.user_id    → User.user_id
 
 ### Communication Interfaces
 
-| Protocol | Purpose |
-|---|---|
-| HTTP | Web communication |
-| HTTPS | Secure client-server communication |
-| REST API | Frontend/backend data exchange |
-| JSON | Request/response data format |
-| TCP/IP | Network communication |
-| WebSocket / Socket.IO | Real-time chat and notifications |
-| SMTP | Email delivery |
+| Protocol              | Purpose                            |
+| --------------------- | ---------------------------------- |
+| HTTP                  | Web communication                  |
+| HTTPS                 | Secure client-server communication |
+| REST API              | Frontend/backend data exchange     |
+| JSON                  | Request/response data format       |
+| TCP/IP                | Network communication              |
+| WebSocket / Socket.IO | Real-time chat and notifications   |
+| SMTP                  | Email delivery                     |
 
 ### UI Principles
 
@@ -841,16 +923,16 @@ The error-handling strategy covers frontend, backend, database, and third-party 
 
 ### HTTP Responses
 
-| Code | Meaning |
-|---|---|
-| `400` | Bad Request |
-| `401` | Unauthorized |
-| `403` | Forbidden |
-| `404` | Not Found |
-| `409` | Conflict |
-| `422` | Validation Error |
+| Code  | Meaning               |
+| ----- | --------------------- |
+| `400` | Bad Request           |
+| `401` | Unauthorized          |
+| `403` | Forbidden             |
+| `404` | Not Found             |
+| `409` | Conflict              |
+| `422` | Validation Error      |
 | `500` | Internal Server Error |
-| `503` | Service Unavailable |
+| `503` | Service Unavailable   |
 
 Emergency-related failures receive high priority; if a provider cannot be assigned immediately, the request should remain in an appropriate pending state and the manager should be notified.
 
@@ -911,22 +993,22 @@ The SADD maps requirements to implementation modules, classes, sequence diagrams
 
 ### Requirement Coverage Summary
 
-| ID Range | Example Requirement | Primary Design Area |
-|---|---|---|
+| ID Range    | Example Requirement                                     | Primary Design Area              |
+| ----------- | ------------------------------------------------------- | -------------------------------- |
 | FR-01–FR-05 | Registration, login, password reset, profile management | Authentication & User Management |
-| FR-06–FR-07 | Emergency and non-emergency requests | SOS / Request Management |
-| FR-08 | Share current location | Location & Tracking |
-| FR-09–FR-10 | Manager verification and approval/rejection | Emergency Verification |
-| FR-11–FR-12 | Find and assign nearest suitable provider | Provider Assignment / Location |
-| FR-13–FR-14 | Provider response and availability | Provider Management |
-| FR-15 | Live location tracking | Location & Tracking |
-| FR-16 | Chat | Chat Module |
-| FR-17 | Notifications | Notification Module |
-| FR-18 | Complete help request | SOS / Request Management |
-| FR-19–FR-20 | Payment and payment status | Payment Module |
-| FR-21 | Rate and review provider | Rating & Review |
-| FR-22–FR-23 | Admin user/category management | Administration |
-| FR-24 | View request status | SOS / Request Management |
+| FR-06–FR-07 | Emergency and non-emergency requests                    | SOS / Request Management         |
+| FR-08       | Share current location                                  | Location & Tracking              |
+| FR-09–FR-10 | Manager verification and approval/rejection             | Emergency Verification           |
+| FR-11–FR-12 | Find and assign nearest suitable provider               | Provider Assignment / Location   |
+| FR-13–FR-14 | Provider response and availability                      | Provider Management              |
+| FR-15       | Live location tracking                                  | Location & Tracking              |
+| FR-16       | Chat                                                    | Chat Module                      |
+| FR-17       | Notifications                                           | Notification Module              |
+| FR-18       | Complete help request                                   | SOS / Request Management         |
+| FR-19–FR-20 | Payment and payment status                              | Payment Module                   |
+| FR-21       | Rate and review provider                                | Rating & Review                  |
+| FR-22–FR-23 | Admin user/category management                          | Administration                   |
+| FR-24       | View request status                                     | SOS / Request Management         |
 
 The document associates these requirements with sequence diagrams and test cases such as `TC-01` through `TC-24`.
 
@@ -1007,20 +1089,20 @@ The SADD specifies the following setup process:
 
 ### Required software
 
-| Category | Requirement |
-|---|---|
-| OS | Windows / Linux |
-| Frontend | Next.js / React |
-| Backend | Node.js + Express.js |
-| Language | JavaScript / TypeScript |
-| Database | PostgreSQL |
-| Authentication | JWT |
-| Real-Time | WebSocket / Socket.IO |
-| API | REST API |
-| API Testing | Postman |
-| Version Control | Git / GitHub |
-| IDE | Visual Studio Code |
-| Browser | Chrome / Edge / Firefox |
+| Category        | Requirement             |
+| --------------- | ----------------------- |
+| OS              | Windows / Linux         |
+| Frontend        | Next.js / React         |
+| Backend         | Node.js + Express.js    |
+| Language        | JavaScript / TypeScript |
+| Database        | PostgreSQL              |
+| Authentication  | JWT                     |
+| Real-Time       | WebSocket / Socket.IO   |
+| API             | REST API                |
+| API Testing     | Postman                 |
+| Version Control | Git / GitHub            |
+| IDE             | Visual Studio Code      |
+| Browser         | Chrome / Edge / Firefox |
 
 > The SADD does not provide exact repository URLs, environment-variable names, database migration commands, or project-specific start scripts. Those should be added from the implementation repository rather than invented here.
 
@@ -1030,24 +1112,24 @@ The SADD specifies the following setup process:
 
 ### Client / User Device
 
-| Requirement | Minimum |
-|---|---|
-| Processor | Dual-Core |
-| RAM | 2 GB or above |
-| Storage | 1 GB free |
-| Display | 1280 × 720 or above |
-| Network | Stable Internet |
-| Location | GPS-enabled device where applicable |
+| Requirement | Minimum                             |
+| ----------- | ----------------------------------- |
+| Processor   | Dual-Core                           |
+| RAM         | 2 GB or above                       |
+| Storage     | 1 GB free                           |
+| Display     | 1280 × 720 or above                 |
+| Network     | Stable Internet                     |
+| Location    | GPS-enabled device where applicable |
 
 ### Server
 
-| Requirement | Minimum |
-|---|---|
-| CPU | 2 vCPUs |
-| RAM | 4 GB |
-| Storage | 20 GB SSD |
-| Network | Stable high-speed Internet |
-| Backup | Additional database backup storage |
+| Requirement | Minimum                            |
+| ----------- | ---------------------------------- |
+| CPU         | 2 vCPUs                            |
+| RAM         | 4 GB                               |
+| Storage     | 20 GB SSD                          |
+| Network     | Stable high-speed Internet         |
+| Backup      | Additional database backup storage |
 
 Server capacity can be increased based on traffic and database requirements.
 
@@ -1186,28 +1268,28 @@ The architecture document references:
 
 ## 30. Project Snapshot
 
-| Area | Design |
-|---|---|
-| Project | RESQConnect / HelpBridge |
-| Version | 1.0 |
-| Type | Web-based emergency & community help platform |
-| Architecture | Three-Tier MVC + REST |
-| Frontend | Next.js + React + Tailwind CSS |
-| Backend | Node.js + Express.js |
-| Database | PostgreSQL |
-| Authentication | JWT + bcrypt |
-| Real-Time | Socket.IO / WebSocket |
-| Payments | Razorpay |
-| Notifications | Firebase Cloud Messaging |
-| Maps / Location | Google Maps API |
-| File Storage | Cloudinary |
-| Email | SMTP / Nodemailer |
-| Validation | Zod |
-| API Testing | Postman |
-| Version Control | Git / GitHub |
-| Frontend Deployment | Vercel |
-| Backend Deployment | Render / Railway |
-| Primary Roles | Help Seeker, Provider, Manager, Admin |
+| Area                | Design                                        |
+| ------------------- | --------------------------------------------- |
+| Project             | RESQConnect / HelpBridge                      |
+| Version             | 1.0                                           |
+| Type                | Web-based emergency & community help platform |
+| Architecture        | Three-Tier MVC + REST                         |
+| Frontend            | Next.js + React + Tailwind CSS                |
+| Backend             | Node.js + Express.js                          |
+| Database            | PostgreSQL                                    |
+| Authentication      | JWT + bcrypt                                  |
+| Real-Time           | Socket.IO / WebSocket                         |
+| Payments            | Razorpay                                      |
+| Notifications       | Firebase Cloud Messaging                      |
+| Maps / Location     | Google Maps API                               |
+| File Storage        | Cloudinary                                    |
+| Email               | SMTP / Nodemailer                             |
+| Validation          | Zod                                           |
+| API Testing         | Postman                                       |
+| Version Control     | Git / GitHub                                  |
+| Frontend Deployment | Vercel                                        |
+| Backend Deployment  | Render / Railway                              |
+| Primary Roles       | Help Seeker, Provider, Manager, Admin         |
 
 ---
 

@@ -74,7 +74,7 @@ function PasswordInput({ id, label, value, onChange }: { id: string; label: stri
       <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor={id}>{label}</label>
       <div className="relative">
         <Lock size={19} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input id={id} required minLength={6} type="password" value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+        <input id={id} required minLength={8} type="password" value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
       </div>
     </div>
   );

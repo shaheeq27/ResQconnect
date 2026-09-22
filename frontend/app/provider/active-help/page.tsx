@@ -33,8 +33,9 @@ import {
   Route,
   Car,
 } from "lucide-react";
+import { ProviderActiveWorkflow } from "../../../components/ProviderWorkflow";
 
-export default function ActiveHelpPage() {
+function LegacyActiveHelpPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [helpStatus, setHelpStatus] = useState<
@@ -1278,3 +1279,5 @@ function ProgressStep({
     </div>
   );
 }
+
+export default ProviderActiveWorkflow;

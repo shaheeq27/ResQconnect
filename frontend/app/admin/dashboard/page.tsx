@@ -6,11 +6,14 @@ import { useEffect } from "react";
 import { apiRequest } from "../../../lib/api";
 type ApplicationStatus = "Pending" | "Approved" | "Rejected";
 type ManagerApplication = {id: number;name: string;email: string;phone: string;occupation: string;department: string;designation: string;location: string;status: ApplicationStatus;};
+type ViewFilter = "all" | "pending" | "approved" | "rejected";
+
 export default function AdminDashboard() {
   const [applications, setApplications] =useState<ManagerApplication[]>([]);
   const [selectedApplication, setSelectedApplication] =useState<ManagerApplication | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<ViewFilter>("all");
   const [error, setError] = useState("");
   const loadApplications = async () => {
     try {
@@ -48,10 +51,23 @@ export default function AdminDashboard() {
   };
   const approveApplication = (id: number) => { void updateApplication(id, "verified"); };
   const rejectApplication = (id: number) => { void updateApplication(id, "rejected"); };
-  const filteredApplications = applications.filter((application) =>`${application.name} ${application.email} ${application.location}`.toLowerCase().includes(searchTerm.toLowerCase()));
   const pendingCount = applications.filter((application) => application.status === "Pending").length;
   const approvedCount = applications.filter((application) => application.status === "Approved").length;
   const rejectedCount = applications.filter((application) => application.status === "Rejected").length;
+
+  const filteredApplications = applications.filter((application) => {
+    const matchesFilter =
+      selectedFilter === "all" ||
+      (selectedFilter === "pending" && application.status === "Pending") ||
+      (selectedFilter === "approved" && application.status === "Approved") ||
+      (selectedFilter === "rejected" && application.status === "Rejected");
+
+    const matchesSearch = `${application.name} ${application.email} ${application.location}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    return matchesFilter && matchesSearch;
+  });
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="flex items-center justify-between bg-white px-5 py-4 shadow-sm lg:hidden">
@@ -84,11 +100,11 @@ export default function AdminDashboard() {
           </div>
 
           <nav className="flex-1 space-y-2 p-4">
-            <NavItem icon={<ShieldCheck size={19} />} text="Dashboard" active/>
-            <NavItem icon={<Users size={19} />} text="Users"/>
-            <NavItem icon={<Clock size={19} />} text="Manager Applications" badge={pendingCount} />
-            <NavItem icon={<CheckCircle size={19} />} text="Approved Managers"/>
-            <NavItem icon={<XCircle size={19} />} text="Rejected Applications"/>
+            <NavItem icon={<ShieldCheck size={19} />} text="Dashboard" active={selectedFilter === "all"} onClick={() => setSelectedFilter("all")} />
+            <NavItem icon={<Users size={19} />} text="Users" active={selectedFilter === "all"} onClick={() => setSelectedFilter("all")} />
+            <NavItem icon={<Clock size={19} />} text="Manager Applications" active={selectedFilter === "pending"} badge={pendingCount} onClick={() => setSelectedFilter("pending")} />
+            <NavItem icon={<CheckCircle size={19} />} text="Approved Managers" active={selectedFilter === "approved"} onClick={() => setSelectedFilter("approved")} />
+            <NavItem icon={<XCircle size={19} />} text="Rejected Applications" active={selectedFilter === "rejected"} onClick={() => setSelectedFilter("rejected")} />
           </nav>
 
           <div className="border-t border-slate-700 p-4">
@@ -236,9 +252,9 @@ function StatCard({title,value,icon,}: {title: string;value: number;icon: React.
     </div>
   );
 }
-function NavItem({icon,text,active = false,badge,}: {icon: React.ReactNode;text: string;active?: boolean;badge?: number;}){
+function NavItem({icon,text,active = false,badge,onClick}: {icon: React.ReactNode;text: string;active?: boolean;badge?: number;onClick?: () => void;}){
   return (
-    <button className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-sm transition ${
+    <button onClick={onClick} className={`flex w-full items-center justify-between rounded-lg px-4 py-3 text-sm transition ${
         active? "bg-emerald-600 text-white": "text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
       <span className="flex items-center gap-3">{icon}{text}</span>
       {badge !== undefined && badge > 0 && (<span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{badge}</span>)}

@@ -1,4 +1,8 @@
-const { findUserById, updateUserProfile } = require("../models/userModels");
+const {
+  findUserById,
+  updateUserProfile,
+  updateUserLocation,
+} = require("../models/userModels");
 
 const getProfile = async (req, res) => {
   try {
@@ -51,4 +55,28 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile };
+const updateLocation = async (req, res) => {
+  const latitude = Number(req.body.latitude);
+  const longitude = Number(req.body.longitude);
+  if (
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return res
+      .status(400)
+      .json({ message: "Valid latitude and longitude are required" });
+  }
+  try {
+    const location = await updateUserLocation(req.user.id, latitude, longitude);
+    res.status(200).json({ location });
+  } catch (error) {
+    console.error("Update location error:", error);
+    res.status(500).json({ message: "Failed to update location" });
+  }
+};
+
+module.exports = { getProfile, updateProfile, updateLocation };

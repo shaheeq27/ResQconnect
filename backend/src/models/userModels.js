@@ -143,10 +143,24 @@ const updateUserProfile = async (id, profile) => {
   return result.rows[0];
 };
 
+const updateUserLocation = async (id, latitude, longitude) => {
+  const result = await pool.query(
+    `
+      UPDATE users
+      SET latitude = $1, longitude = $2, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING id, latitude, longitude, updated_at;
+    `,
+    [latitude, longitude, id],
+  );
+  return result.rows[0];
+};
+
 module.exports = {
   findUserByEmail,
   findUserById,
   createUser,
   updatePassword,
   updateUserProfile,
+  updateUserLocation,
 };

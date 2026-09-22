@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -27,8 +28,9 @@ import {
   AlertTriangle,
   HeartHandshake,
 } from "lucide-react";
+import { ProviderRequestWorkflow } from "../../../../components/ProviderWorkflow";
 
-export default function RequestDetailsPage() {
+function LegacyRequestDetailsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accepted, setAccepted] = useState(false);
 
@@ -1081,4 +1083,9 @@ function PaymentRow({
 
     </div>
   );
+}
+
+export default function RequestDetailsPage() {
+  const { id } = useParams<{ id: string }>();
+  return <ProviderRequestWorkflow requestId={id} />;
 }

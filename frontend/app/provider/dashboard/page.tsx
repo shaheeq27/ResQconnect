@@ -25,8 +25,9 @@ import {
   CircleCheck,
   TrendingUp,
 } from "lucide-react";
+import { ProviderDashboardWorkflow } from "../../../components/ProviderWorkflow";
 
-export default function ProviderDashboard() {
+function LegacyProviderDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [available, setAvailable] = useState(true);
 
@@ -488,7 +489,7 @@ export default function ProviderDashboard() {
               <section className="rounded-xl border bg-white p-5 shadow-sm">
 
                 <h3 className="text-lg font-bold text-[#10275a]">
-                  Today's Summary
+                  Today&apos;s Summary
                 </h3>
 
 
@@ -922,3 +923,5 @@ function SummaryRow({
     </div>
   );
 }
+
+export default ProviderDashboardWorkflow;

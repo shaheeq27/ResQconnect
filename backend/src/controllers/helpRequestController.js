@@ -22,7 +22,14 @@ const createRequest = async (req, res) => {
       !request_type ||
       !title ||
       latitude === undefined ||
-      longitude === undefined
+      longitude === undefined ||
+      !["emergency", "non_emergency"].includes(request_type) ||
+      !Number.isFinite(Number(latitude)) ||
+      Number(latitude) < -90 ||
+      Number(latitude) > 90 ||
+      !Number.isFinite(Number(longitude)) ||
+      Number(longitude) < -180 ||
+      Number(longitude) > 180
     ) {
       return res.status(400).json({
         message: "Request type, title, latitude and longitude are required",

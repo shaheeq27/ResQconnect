@@ -5,6 +5,7 @@ const http = require("http");
 const helmet = require("helmet");
 const jwt = require("jsonwebtoken");
 const morgan = require("morgan");
+const rateLimit = require("express-rate-limit");
 const notificationRoutes = require("./routes/notificationRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const adminSetupRoutes = require("./routes/adminSetupRoutes");
@@ -20,6 +21,7 @@ const profileRoutes = require("./routes/profileRoutes");
 const { Server } = require("socket.io");
 const { createNotification } = require("./models/notificationModel");
 const { createMessage } = require("./models/messageModels");
+const paymentRoutes = require("./routes/paymentRoutes");
 const PORT = process.env.PORT || 5000;
 const io = new Server(server, {
   cors: {
@@ -180,10 +182,22 @@ io.on("connection", (socket) => {
     console.log("User disconnected:", socket.id);
   });
 });
-app.use(cors());
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json());
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+});
+app.use("/api/auth", authRateLimit);
+app.use("/api/payments", paymentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/manager", managerRoutes);
 app.use("/api/help-requests", helpRequestRoutes);

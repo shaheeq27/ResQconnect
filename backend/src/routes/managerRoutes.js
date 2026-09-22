@@ -11,10 +11,12 @@ const {
   getEmergencyRequestById,
   getProviderByIdOrName,
   getProviders,
+  getNearbyProviders,
   approveRequest,
   rejectRequest,
   completeRequest,
   getDashboardStats,
+  assignProvider,
 } = require("../controllers/managerController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -72,6 +74,13 @@ router.get(
 
 router.get("/providers", authMiddleware, managerMiddleware, getProviders);
 
+router.get(
+  "/requests/:id/nearby-providers",
+  authMiddleware,
+  managerMiddleware,
+  getNearbyProviders,
+);
+
 // Approve emergency request
 router.put(
   "/requests/:id/approve",
@@ -86,6 +95,13 @@ router.put(
   authMiddleware,
   managerMiddleware,
   rejectRequest,
+);
+
+router.put(
+  "/requests/:id/assign",
+  authMiddleware,
+  managerMiddleware,
+  assignProvider,
 );
 
 router.put(
