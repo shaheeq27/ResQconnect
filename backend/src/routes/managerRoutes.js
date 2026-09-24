@@ -17,6 +17,7 @@ const {
   completeRequest,
   getDashboardStats,
   assignProvider,
+  getPendingAssignments,
 } = require("../controllers/managerController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -49,6 +50,13 @@ router.get(
   authMiddleware,
   managerMiddleware,
   getActiveRequests,
+);
+
+router.get(
+  "/requests/pending-assignments",
+  authMiddleware,
+  managerMiddleware,
+  getPendingAssignments,
 );
 
 router.get(

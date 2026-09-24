@@ -152,12 +152,18 @@ const completeRequest = async (req, res) => {
       });
     }
 
+    const pool = require("../config/database");
+    await pool.query(
+      `UPDATE users SET availability_status = 'available' WHERE id = $1`,
+      [providerId],
+    );
+
     await createNotification(
       request.requester_id,
       request.id,
       "request_completed",
       "Help Request Completed",
-      "Your help request has been completed successfully.",
+      "Your help request has been completed successfully. Please proceed to payment.",
     );
 
     res.status(200).json({
@@ -173,6 +179,342 @@ const completeRequest = async (req, res) => {
   }
 };
 
+// Providers register interest first. A background job assigns the closest interested provider after the buffer.
+const expressInterestAndAssignKNN = async (req, res) => {
+  const pool = require("../config/database");
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params; // request id
+
+    await client.query("BEGIN");
+
+    // Lock the request so two providers cannot accept the same request.
+    const reqRes = await client.query(
+      `SELECT * FROM help_requests WHERE id = $1 FOR UPDATE`,
+      [id],
+    );
+    if (reqRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Help request not found." });
+    }
+
+    const helpReq = reqRes.rows[0];
+    if (helpReq.status !== "approved" || helpReq.assigned_provider_id) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: "Request has already been assigned to another provider.",
+      });
+    }
+
+    const providerRes = await client.query(
+      `SELECT id, name, phone, latitude, longitude, availability_status
+       FROM users
+       WHERE id = $1
+         AND latitude IS NOT NULL
+         AND longitude IS NOT NULL
+         AND last_located_at >= CURRENT_TIMESTAMP - INTERVAL '5 minutes'
+       FOR UPDATE`,
+      [req.user.id],
+    );
+
+    if (providerRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      // Give a clear diagnostic message
+      const diagRes = await pool.query(
+        `SELECT availability_status, latitude, longitude, last_located_at FROM users WHERE id = $1`,
+        [req.user.id],
+      );
+      const diag = diagRes.rows[0];
+      if (!diag) return res.status(404).json({ message: "User not found." });
+      if (!diag.latitude || !diag.longitude) {
+        return res.status(409).json({ message: "GPS not received yet. Please allow location access and wait for the green GPS banner, then try again." });
+      }
+      return res.status(409).json({ message: `GPS location is stale (last update: ${diag.last_located_at}). Please keep the page open for GPS to refresh.` });
+    }
+
+    // Auto-set provider as available when they express interest
+    await client.query(
+      `UPDATE users SET availability_status = 'available', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [req.user.id],
+    );
+
+    await client.query(
+      `INSERT INTO provider_request_interests (request_id, provider_id)
+       VALUES ($1, $2)
+       ON CONFLICT (request_id, provider_id) DO NOTHING`,
+      [id, providerRes.rows[0].id],
+    );
+    await client.query("COMMIT");
+
+    await createNotification(
+      helpReq.requester_id,
+      id,
+      "provider_interest",
+      "Provider Ready to Help",
+      "A provider is ready to help. HelpBridge will select the closest interested provider in about 30 seconds.",
+    );
+
+    res.status(202).json({
+      message:
+        "Your interest is recorded. HelpBridge will assign the nearest provider in about 30 seconds.",
+      request: helpReq,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Express interest error:", error);
+    res.status(500).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? "Failed to process acceptance request."
+          : `Failed to process acceptance request: ${error.message}`,
+    });
+  } finally {
+    client.release();
+  }
+};
+
+const finalizeProviderInterests = async () => {
+  const pool = require("../config/database");
+  const { calculateHaversineDistance } = require("../services/knnService");
+
+  // Find requests that have had at least one interested provider for >= 30 seconds
+  const pending = await pool.query(
+    `SELECT hr.id
+     FROM help_requests hr
+     JOIN provider_request_interests pri ON pri.request_id = hr.id
+     WHERE hr.status = 'approved'
+     GROUP BY hr.id
+     HAVING MIN(pri.created_at) <= CURRENT_TIMESTAMP - INTERVAL '30 seconds'`,
+  );
+
+  for (const row of pending.rows) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Re-fetch with lock — only process if still 'approved'
+      const requestResult = await client.query(
+        `SELECT * FROM help_requests WHERE id = $1 AND status = 'approved' FOR UPDATE`,
+        [row.id],
+      );
+      if (!requestResult.rows.length) { await client.query("ROLLBACK"); continue; }
+
+      const request = requestResult.rows[0];
+      const needed = Number(request.providers_needed) || 1;
+
+      // How many providers are already assigned for this request?
+      const alreadyRes = await client.query(
+        `SELECT COUNT(*) AS cnt FROM request_assignments WHERE request_id = $1`,
+        [request.id],
+      );
+      const alreadyAssigned = Number(alreadyRes.rows[0].cnt);
+      const remaining = needed - alreadyAssigned;
+      if (remaining <= 0) { await client.query("ROLLBACK"); continue; }
+
+      // Candidates: interested, available, have GPS — exclude already-assigned ones
+      const candidates = await client.query(
+        `SELECT u.id, u.name, u.phone, u.latitude, u.longitude
+         FROM provider_request_interests pri
+         JOIN users u ON u.id = pri.provider_id
+         WHERE pri.request_id = $1
+           AND u.availability_status = 'available'
+           AND u.latitude IS NOT NULL
+           AND u.longitude IS NOT NULL
+           AND u.id NOT IN (
+             SELECT provider_id FROM request_assignments WHERE request_id = $1
+           )
+         FOR UPDATE OF u`,
+        [request.id],
+      );
+
+      if (!candidates.rows.length) { await client.query("ROLLBACK"); continue; }
+
+      // Sort by Haversine distance, pick the closest `remaining` providers
+      const ranked = candidates.rows
+        .map((p) => ({
+          ...p,
+          distance_km: calculateHaversineDistance(
+            Number(request.latitude), Number(request.longitude),
+            Number(p.latitude),      Number(p.longitude),
+          ),
+        }))
+        .sort((a, b) => a.distance_km - b.distance_km)
+        .slice(0, remaining);
+
+      for (const winner of ranked) {
+        // Record in request_assignments
+        await client.query(
+          `INSERT INTO request_assignments (request_id, provider_id, status)
+           VALUES ($1, $2, 'accepted')
+           ON CONFLICT (request_id, provider_id) DO NOTHING`,
+          [request.id, winner.id],
+        );
+
+        // Keep assigned_provider_id pointing to the first (closest) provider for legacy queries
+        if (alreadyAssigned === 0 && ranked.indexOf(winner) === 0) {
+          await client.query(
+            `UPDATE help_requests SET assigned_provider_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+            [winner.id, request.id],
+          );
+        }
+
+        // Mark provider as busy
+        await client.query(
+          `UPDATE users SET availability_status = 'busy', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [winner.id],
+        );
+      }
+
+      // Flip status to 'accepted' once we've filled all slots
+      const totalAssigned = alreadyAssigned + ranked.length;
+      if (totalAssigned >= needed) {
+        await client.query(
+          `UPDATE help_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          [request.id],
+        );
+      }
+
+      await client.query("COMMIT");
+
+      // Notify seeker
+      const names = ranked.map((p) => p.name).join(", ");
+      const distInfo = ranked.map((p) => `${p.name} (${p.distance_km} km)`).join(", ");
+      await createNotification(
+        request.requester_id, request.id,
+        "provider_assigned", "Provider(s) Assigned",
+        needed > 1
+          ? `${totalAssigned} of ${needed} providers assigned: ${distInfo}.`
+          : `Provider ${ranked[0].name} assigned (${ranked[0].distance_km} km away).`,
+      );
+
+      // Notify each winning provider
+      for (const winner of ranked) {
+        await createNotification(
+          winner.id, request.id,
+          "request_assigned", "Help Request Assigned",
+          `You were selected to help "${request.title}". Location: ${request.address || `${request.latitude}, ${request.longitude}`}.`,
+        );
+      }
+
+      // Notify non-selected candidates
+      const winnerIds = new Set(ranked.map((p) => p.id));
+      for (const p of candidates.rows.filter((c) => !winnerIds.has(c.id))) {
+        await createNotification(
+          p.id, request.id,
+          "provider_not_selected", "Provider Not Selected",
+          "Another provider was closer for this request. Thank you for responding.",
+        );
+      }
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Finalize provider interests error:", error);
+    } finally {
+      client.release();
+    }
+  }
+};
+
+// Cancel providing help
+const cancelProvideHelp = async (req, res) => {
+  const pool = require("../config/database");
+  const client = await pool.connect();
+
+  try {
+    const { id } = req.params;
+    const providerId = req.user.id;
+    await client.query("BEGIN");
+
+    // 1. Fetch request details
+    const reqRes = await client.query(
+      `SELECT hr.*, u.name AS provider_name
+       FROM help_requests hr
+       LEFT JOIN users u ON u.id = $1
+       WHERE hr.id = $2
+      FOR UPDATE OF hr`,
+      [providerId, id],
+    );
+
+    if (reqRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Help request not found." });
+    }
+
+    const helpReq = reqRes.rows[0];
+
+    if (helpReq.assigned_provider_id !== providerId) {
+      await client.query("ROLLBACK");
+      return res
+        .status(403)
+        .json({ message: "You are not assigned to this help request." });
+    }
+
+    if (!["assigned", "accepted", "in_progress"].includes(helpReq.status)) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: "This help request can no longer be cancelled.",
+      });
+    }
+
+    // 2. Unassign provider and reset request status to 'approved'
+    const updateRes = await client.query(
+      `
+      UPDATE help_requests
+      SET assigned_provider_id = NULL, status = 'approved', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *;
+      `,
+      [id],
+    );
+
+    // 3. Mark provider as available again
+    await client.query(
+      `UPDATE users SET availability_status = 'available', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [providerId],
+    );
+    await client.query("COMMIT");
+
+    // 4. Notify Requester
+    await createNotification(
+      helpReq.requester_id,
+      id,
+      "provider_cancelled",
+      "Provider Cancelled Assistance",
+      `Provider ${helpReq.provider_name || "Assigned Provider"} had to cancel. Re-routing your request to other nearby providers immediately.`,
+    );
+
+    // 5. Re-broadcast notification to all available providers/users
+    const providersRes = await pool.query(
+      `SELECT id FROM users WHERE role IN ('provider', 'seeker', 'user') AND availability_status = 'available' AND id <> $1`,
+      [providerId],
+    );
+
+    for (const prov of providersRes.rows) {
+      if (prov.id !== helpReq.requester_id) {
+        await createNotification(
+          prov.id,
+          id,
+          "broadcast_request",
+          "Help Request Available Again!",
+          `Help Request "${helpReq.title}" is available again as previous provider cancelled. Click to respond!`,
+        );
+      }
+    }
+
+    res.status(200).json({
+      message:
+        "You have cancelled providing help. The request has been re-opened for other nearby providers.",
+      request: updateRes.rows[0],
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Cancel provide help error:", error);
+    res.status(500).json({ message: "Failed to cancel assistance." });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getAvailableRequests,
   getMyRequests,
@@ -180,4 +522,7 @@ module.exports = {
   startRequest,
   getRequestDetails,
   acceptRequest,
+  expressInterestAndAssignKNN,
+  cancelProvideHelp,
+  finalizeProviderInterests,
 };

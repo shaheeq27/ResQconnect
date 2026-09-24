@@ -40,12 +40,10 @@ const register = async (req, res) => {
       !/[A-Za-z]/.test(password) ||
       !/\d/.test(password)
     ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Password must be at least 8 characters and include a letter and a number",
-        });
+      return res.status(400).json({
+        message:
+          "Password must be at least 8 characters and include a letter and a number",
+      });
     }
 
     if (!/^\S+@\S+\.\S+$/.test(email.trim()) || phone.trim().length < 7) {
@@ -66,6 +64,12 @@ const register = async (req, res) => {
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
+    // Ordinary accounts can both request and provide help. Keep manager/admin
+    // roles available for their dedicated registration flows.
+    const accountRole = ["provider", "seeker", "user"].includes(role)
+      ? "user"
+      : role;
+
     // Create user
     const user = await createUser({
       name,
@@ -77,7 +81,7 @@ const register = async (req, res) => {
       latitude,
       longitude,
       address,
-      role,
+      role: accountRole,
     });
 
     res.status(201).json({

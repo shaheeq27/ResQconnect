@@ -18,6 +18,7 @@ import {
   MapPin,
   Menu,
   MessageSquare,
+  Navigation,
   Settings,
   Siren,
   ShieldCheck,
@@ -113,6 +114,11 @@ export default function SeekerDashboard() {
 
   const hasCompletedRequest = requests.some(
     (request) => request.status === "completed",
+  );
+
+  // Active requests where a provider has been assigned
+  const activeAssignedRequests = requests.filter((r) =>
+    ["assigned", "accepted", "in_progress"].includes(r.status),
   );
 
   if (loading) {
@@ -309,6 +315,71 @@ export default function SeekerDashboard() {
               </span>
             </div>
           </div>
+          {/* Dual-Role Provider Banner */}
+          <div className="mb-8 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-600 p-5 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+                <BriefcaseBusiness size={26} className="text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold">
+                    Dual-Role Member: Provider Workspace
+                  </h3>
+                  <span className="rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-200 border border-emerald-400/30">
+                    Active
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-blue-100">
+                  You can both seek help and provide help! Browse requests in
+                  your neighborhood, accept emergency alerts, and earn.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/provider/dashboard"
+              className="shrink-0 rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow hover:bg-blue-50 transition"
+            >
+              Open Provider Workspace →
+            </Link>
+          </div>
+
+          {/* Active assignment alerts */}
+          {activeAssignedRequests.length > 0 && (
+            <div className="mb-6 space-y-3">
+              {activeAssignedRequests.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="h-3 w-3 animate-pulse rounded-full bg-emerald-500" />
+                    <div>
+                      <p className="font-bold text-emerald-800">
+                        {r.status === "in_progress"
+                          ? "🟢 Provider is helping you now"
+                          : r.status === "accepted"
+                          ? "🔵 Provider is on the way!"
+                          : "🟡 Provider has been assigned"}
+                      </p>
+                      <p className="text-xs text-emerald-700">{r.title}</p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={`/requests/${r.id}/track`}
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                    >
+                      <MapPin size={13} /> Track
+                    </Link>
+                    <Link
+                      href={`/requests/${r.id}/chat`}
+                      className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <MessageSquare size={13} /> Chat
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="mb-8 grid gap-6 xl:grid-cols-2">
             <ActionCard
@@ -440,16 +511,34 @@ export default function SeekerDashboard() {
                           </span>
 
                           <div className="flex items-center gap-2">
-                            {request.status === "assigned" ||
-                            request.status === "accepted" ||
-                            request.status === "in_progress" ? (
+                            {request.status === "completed" ? (
                               <Link
-                                href={`/chat/${request.id}`}
-                                className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                                href={`/payment?requestId=${request.id}`}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-sm transition"
                               >
-                                <MessageSquare size={16} />
-                                Open chat
+                                <CreditCard size={15} />
+                                Pay for Help
                               </Link>
+                            ) : null}
+                            {(request.status === "assigned" ||
+                            request.status === "accepted" ||
+                            request.status === "in_progress") ? (
+                              <>
+                                <Link
+                                  href={`/requests/${request.id}/track`}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                                >
+                                  <MapPin size={15} />
+                                  Track
+                                </Link>
+                                <Link
+                                  href={`/requests/${request.id}/chat`}
+                                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                                >
+                                  <MessageSquare size={16} />
+                                  Chat
+                                </Link>
+                              </>
                             ) : null}
                             <Link
                               href={`/requests/${request.id}`}

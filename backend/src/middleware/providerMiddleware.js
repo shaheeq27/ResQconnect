@@ -6,12 +6,8 @@ const providerMiddleware = (req, res, next) => {
       });
     }
 
-    if (!["provider", "seeker"].includes(req.user.role)) {
-      return res.status(403).json({
-        message: "Access denied. User provider access required.",
-      });
-    }
-
+    // Allow all authenticated users — HelpBridge supports dual-role (seeker can also be a provider)
+    // Only block unauthenticated requests
     next();
   } catch (error) {
     console.error("Provider authorization error:", error);

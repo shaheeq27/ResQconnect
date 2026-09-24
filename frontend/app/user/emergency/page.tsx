@@ -20,8 +20,14 @@ export default function EmergencyPage() {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => { setLatitude(coords.latitude); setLongitude(coords.longitude); setMessage("Location captured."); },
+      ({ coords }) => {
+        setLatitude(coords.latitude);
+        setLongitude(coords.longitude);
+        setAddress(`${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+        setMessage("GPS location captured. You can submit this request now.");
+      },
       () => setMessage("Please allow location access or enter your location and try again."),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
   };
 
@@ -95,6 +101,11 @@ export default function EmergencyPage() {
               </div>
               <button type="button" onClick={useGps} className="rounded-xl bg-slate-100 px-4 font-semibold text-slate-700 hover:bg-slate-200">Use GPS</button>
             </div>
+            {latitude !== null && longitude !== null && (
+              <p className="mt-2 text-xs text-emerald-700">
+                GPS coordinates: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+              </p>
+            )}
           </div>
           <div className="mb-5">
             <label className="mb-2 block text-sm font-semibold text-slate-700">Number of People Requiring Help</label>

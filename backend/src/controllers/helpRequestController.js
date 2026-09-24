@@ -39,6 +39,9 @@ const createRequest = async (req, res) => {
     // Get logged-in user's ID
     const requester_id = req.user.id;
 
+    const pool = require("../config/database");
+    const { createNotification } = require("../models/notificationModel");
+
     const request = await createHelpRequest({
       requester_id,
       request_type,
@@ -50,8 +53,27 @@ const createRequest = async (req, res) => {
       address,
     });
 
+    // Every request is reviewed before it is broadcast to providers.
+    const managersRes = await pool.query(
+      `SELECT id FROM users WHERE role = 'manager'`,
+    );
+    for (const mgr of managersRes.rows) {
+      await createNotification(
+        mgr.id,
+        request.id,
+        "request_pending_verification",
+        request_type === "emergency"
+          ? "NEW EMERGENCY SOS REQUEST"
+          : "New Help Request Needs Approval",
+        `Request: "${title}". Pending manager approval.`,
+      );
+    }
+
     res.status(201).json({
-      message: "Help request created successfully",
+      message:
+        request_type === "emergency"
+          ? "Emergency SOS request sent to Manager for approval."
+          : "Help request created successfully",
       request,
     });
   } catch (error) {
@@ -86,23 +108,27 @@ const getRequestById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const request = await getHelpRequestById(id);
+    const pool = require("../config/database");
+    const result = await pool.query(
+      `SELECT hr.*,
+              u_req.name AS requester_name, u_req.phone AS requester_phone,
+              u_prov.name AS provider_name,  u_prov.phone AS provider_phone,
+              u_prov.latitude AS provider_live_lat, u_prov.longitude AS provider_live_lon
+       FROM help_requests hr
+       JOIN users u_req ON u_req.id = hr.requester_id
+       LEFT JOIN users u_prov ON u_prov.id = hr.assigned_provider_id
+       WHERE hr.id = $1`,
+      [id],
+    );
 
-    if (!request) {
-      return res.status(404).json({
-        message: "Help request not found",
-      });
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Help request not found" });
     }
 
-    res.status(200).json({
-      request,
-    });
+    res.status(200).json({ request: result.rows[0] });
   } catch (error) {
     console.error("Get help request error:", error);
-
-    res.status(500).json({
-      message: "Failed to fetch help request",
-    });
+    res.status(500).json({ message: "Failed to fetch help request" });
   }
 };
 

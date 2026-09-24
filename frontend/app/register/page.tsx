@@ -44,7 +44,7 @@ export default function RegisterPage() {
           occupation: form.occupation,
           blood_group: form.blood_group || null,
           address: form.address || null,
-          role: "seeker",
+          role: "user",
         }),
       });
       setSuccess("Account created successfully. Redirecting to login...");
@@ -97,6 +97,14 @@ export default function RegisterPage() {
               <div className="mb-8">
                 <h2 className="text-3xl font-bold text-slate-900">Create Your Account</h2>
                 <p className="mt-2 text-slate-500">Join HelpBridge and get help or provide help to others.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                    ✓ Seeker Mode (Request Emergency & Non-Emergency Help)
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
+                    ✓ Provider Mode (Earn & Help Neighbors in Need)
+                  </span>
+                </div>
               </div>
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div>

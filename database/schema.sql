@@ -12,6 +12,7 @@ CREATE TABLE users (
     role VARCHAR(20) NOT NULL DEFAULT 'seeker',
     availability_status VARCHAR(20) DEFAULT 'available',
     verification_status VARCHAR(20) DEFAULT 'pending',
+    last_located_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -68,6 +69,8 @@ CREATE TABLE help_requests (
 
     address TEXT,
 
+    agreed_price DECIMAL(10, 2),
+
     status VARCHAR(30) DEFAULT 'pending_verification',
 
     assigned_provider_id INTEGER,
@@ -95,6 +98,7 @@ CREATE TABLE help_requests (
                 'pending_verification',
                 'approved',
                 'rejected',
+                'bargaining',
                 'assigned',
                 'accepted',
                 'in_progress',
@@ -102,6 +106,33 @@ CREATE TABLE help_requests (
                 'cancelled'
             )
         )
+);
+
+CREATE TABLE bargain_offers (
+    id SERIAL PRIMARY KEY,
+    request_id INTEGER NOT NULL,
+    provider_id INTEGER NOT NULL,
+    seeker_id INTEGER NOT NULL,
+    sender_role VARCHAR(20) NOT NULL,
+    offered_price DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    round_number INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_bargain_request
+        FOREIGN KEY (request_id)
+        REFERENCES help_requests(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_bargain_provider
+        FOREIGN KEY (provider_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_bargain_seeker
+        FOREIGN KEY (seeker_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+    CONSTRAINT bargain_status_check
+        CHECK (status IN ('pending', 'accepted', 'rejected', 'countered'))
 );
 CREATE TABLE manager_verifications (
     id SERIAL PRIMARY KEY,
@@ -229,6 +260,26 @@ CREATE TABLE notifications (
         FOREIGN KEY (request_id)
         REFERENCES help_requests(id)
         ON DELETE CASCADE
+);
+
+CREATE TABLE provider_request_interests (
+    id SERIAL PRIMARY KEY,
+    request_id INTEGER NOT NULL,
+    provider_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_interest_request
+        FOREIGN KEY (request_id)
+        REFERENCES help_requests(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_interest_provider
+        FOREIGN KEY (provider_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT unique_request_provider_interest
+        UNIQUE (request_id, provider_id)
 );
 
    

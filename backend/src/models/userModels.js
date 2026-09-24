@@ -147,7 +147,10 @@ const updateUserLocation = async (id, latitude, longitude) => {
   const result = await pool.query(
     `
       UPDATE users
-      SET latitude = $1, longitude = $2, updated_at = CURRENT_TIMESTAMP
+        SET latitude = $1,
+          longitude = $2,
+          last_located_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = $3
       RETURNING id, latitude, longitude, updated_at;
     `,

@@ -25,6 +25,7 @@ import {
 
 type Status = "assigned" | "accepted" | "in_progress";
 type ActiveRequest = { id: number; title: string; emergency_type: string | null; description: string | null; address: string | null; status: Status; requester_name: string; requester_phone: string; provider_name: string | null; provider_phone: string | null; updated_at: string; };
+type PendingAssignment = { request_id: number; title: string; address: string | null; requester_name: string; seconds_remaining: number; candidates: { provider_name: string; provider_phone: string; distance_km: number }[] };
 const statusLabels: Record<Status, string> = { assigned: "Assigned", accepted: "Accepted", in_progress: "In progress" };
 
 export default function ActiveRequestsPage() {
@@ -33,6 +34,7 @@ export default function ActiveRequestsPage() {
   const [requests, setRequests] = useState<ActiveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pendingAssignments, setPendingAssignments] = useState<PendingAssignment[]>([]);
 
   const loadRequests = async () => {
     setIsLoading(true);
@@ -40,6 +42,8 @@ export default function ActiveRequestsPage() {
     try {
       const data = await apiRequest("/manager/requests/active", {}, localStorage.getItem("token"));
       setRequests(data.requests || []);
+      const pending = await apiRequest("/manager/requests/pending-assignments", {}, localStorage.getItem("token"));
+      setPendingAssignments(pending.assignments || []);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load active requests.");
     } finally {
@@ -53,6 +57,8 @@ export default function ActiveRequestsPage() {
       try {
         const data = await apiRequest("/manager/requests/active", {}, localStorage.getItem("token"));
         if (!cancelled) setRequests(data.requests || []);
+        const pending = await apiRequest("/manager/requests/pending-assignments", {}, localStorage.getItem("token"));
+        if (!cancelled) setPendingAssignments(pending.assignments || []);
       } catch (requestError) {
         if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Unable to load active requests.");
       } finally {
@@ -84,6 +90,7 @@ export default function ActiveRequestsPage() {
       <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-800">
         Select an active request below to mark it as completed after the provider confirms the help is finished.
       </div>
+      {pendingAssignments.length > 0 && <section className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-bold text-amber-900">Pending provider responses</h2><p className="mt-1 text-sm text-amber-800">Providers who selected GPS-on and “I am ready to help” are held for three minutes, then the closest eligible provider is assigned automatically.</p><div className="mt-4 space-y-3">{pendingAssignments.map((assignment) => <div key={assignment.request_id} className="rounded-lg border border-amber-200 bg-white p-4"><div className="flex flex-wrap justify-between gap-2"><p className="font-bold text-slate-800">#{assignment.request_id} {assignment.title}</p><span className="text-sm font-bold text-amber-700">{Math.floor(assignment.seconds_remaining / 60)}:{String(assignment.seconds_remaining % 60).padStart(2, "0")} remaining</span></div><p className="mt-1 text-xs text-slate-500">{assignment.requester_name} · {assignment.address || "Location unavailable"}</p><div className="mt-3 flex flex-wrap gap-2">{assignment.candidates.map((candidate) => <span key={`${assignment.request_id}-${candidate.provider_name}`} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{candidate.provider_name} · {candidate.distance_km} km</span>)}</div></div>)}</div></section>}
       {filteredRequests.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-3">
           {filteredRequests.map((request) => (

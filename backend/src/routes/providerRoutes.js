@@ -9,12 +9,26 @@ const {
   acceptRequest,
   startRequest,
   completeRequest,
+  expressInterestAndAssignKNN,
+  cancelProvideHelp,
 } = require("../controllers/providerController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
 const providerMiddleware = require("../middleware/providerMiddleware");
 
+router.post(
+  "/requests/:id/express-interest",
+  authMiddleware,
+  providerMiddleware,
+  expressInterestAndAssignKNN,
+);
+router.put(
+  "/requests/:id/cancel",
+  authMiddleware,
+  providerMiddleware,
+  cancelProvideHelp,
+);
 router.put(
   "/requests/:id/start",
   authMiddleware,

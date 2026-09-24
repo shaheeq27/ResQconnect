@@ -4,6 +4,24 @@ const {
   updateUserLocation,
 } = require("../models/userModels");
 
+const updateAvailability = async (req, res) => {
+  const { status } = req.body;
+  if (!["available", "busy", "offline"].includes(status)) {
+    return res.status(400).json({ message: "Status must be available, busy, or offline" });
+  }
+  try {
+    const pool = require("../config/database");
+    await pool.query(
+      `UPDATE users SET availability_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [status, req.user.id],
+    );
+    res.status(200).json({ message: "Availability updated", status });
+  } catch (error) {
+    console.error("Update availability error:", error);
+    res.status(500).json({ message: "Failed to update availability" });
+  }
+};
+
 const getProfile = async (req, res) => {
   try {
     const user = await findUserById(req.user.id);
@@ -79,4 +97,4 @@ const updateLocation = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile, updateLocation };
+module.exports = { getProfile, updateProfile, updateLocation, updateAvailability };

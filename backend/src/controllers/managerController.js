@@ -1,5 +1,78 @@
 const pool = require("../config/database");
 const { createNotification } = require("../models/notificationModel");
+const { calculateHaversineDistance } = require("../services/knnService");
+
+const getPendingAssignments = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        hr.id AS request_id, hr.title, hr.address,
+        hr.latitude AS request_latitude, hr.longitude AS request_longitude,
+        requester.name AS requester_name, pri.created_at AS interested_at,
+        provider.id AS provider_id, provider.name AS provider_name,
+        provider.phone AS provider_phone, provider.latitude AS provider_latitude,
+        provider.longitude AS provider_longitude,
+        provider.last_located_at AS provider_last_located_at
+      FROM help_requests hr
+      JOIN users requester ON requester.id = hr.requester_id
+      JOIN provider_request_interests pri ON pri.request_id = hr.id
+      JOIN users provider ON provider.id = pri.provider_id
+      WHERE hr.status = 'approved' AND hr.assigned_provider_id IS NULL
+      ORDER BY hr.created_at ASC, pri.created_at ASC
+    `);
+
+    const assignments = new Map();
+    for (const row of result.rows) {
+      if (!assignments.has(row.request_id)) {
+        assignments.set(row.request_id, {
+          request_id: row.request_id,
+          title: row.title,
+          address: row.address,
+          requester_name: row.requester_name,
+          buffer_started_at: row.interested_at,
+          candidates: [],
+        });
+      }
+      const assignment = assignments.get(row.request_id);
+      const distance = calculateHaversineDistance(
+        Number(row.request_latitude),
+        Number(row.request_longitude),
+        Number(row.provider_latitude),
+        Number(row.provider_longitude),
+      );
+      assignment.candidates.push({
+        provider_id: row.provider_id,
+        provider_name: row.provider_name,
+        provider_phone: row.provider_phone,
+        distance_km: Number(distance.toFixed(2)),
+        interested_at: row.interested_at,
+        gps_updated_at: row.provider_last_located_at,
+      });
+    }
+
+    res.status(200).json({
+      assignments: Array.from(assignments.values()).map((assignment) => ({
+        ...assignment,
+        candidates: assignment.candidates.sort(
+          (a, b) => a.distance_km - b.distance_km,
+        ),
+        seconds_remaining: Math.max(
+          0,
+          180 -
+            Math.floor(
+              (Date.now() - new Date(assignment.buffer_started_at).getTime()) /
+                1000,
+            ),
+        ),
+      })),
+    });
+  } catch (error) {
+    console.error("Get pending assignments error:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to fetch pending provider assignments" });
+  }
+};
 
 const getPendingRequests = async (req, res) => {
   try {
@@ -8,7 +81,6 @@ const getPendingRequests = async (req, res) => {
             FROM help_requests
             JOIN users ON users.id = help_requests.requester_id
             WHERE status = 'pending_verification'
-              AND request_type = 'emergency'
             ORDER BY created_at ASC;
         `;
 
@@ -164,7 +236,7 @@ const getProviderByIdOrName = async (req, res) => {
       `
         SELECT id, name, email, phone, address, availability_status, verification_status, created_at
         FROM users
-        WHERE role = 'provider' AND (id::text = $1 OR name = $1)
+        WHERE role IN ('provider', 'seeker', 'user') AND (id::text = $1 OR name = $1)
         LIMIT 1
       `,
       [req.params.id],
@@ -195,7 +267,7 @@ const getProviders = async (req, res) => {
         verification_status,
         created_at
       FROM users
-      WHERE role IN ('provider', 'seeker')
+      WHERE role IN ('provider', 'seeker', 'user')
       ORDER BY created_at DESC;
     `);
 
@@ -221,9 +293,9 @@ const getNearbyProviders = async (req, res) => {
         FROM help_requests request
         CROSS JOIN users provider
         WHERE request.id = $1
-          AND provider.role IN ('provider', 'seeker')
+          AND provider.role IN ('provider', 'seeker', 'user')
           AND provider.id <> request.requester_id
-          AND (provider.role = 'seeker' OR provider.verification_status = 'verified')
+          AND (provider.role IN ('seeker', 'user') OR provider.verification_status = 'verified')
           AND provider.availability_status = 'available'
         ORDER BY distance_km ASC;
       `,
@@ -236,7 +308,7 @@ const getNearbyProviders = async (req, res) => {
   }
 };
 
-// Approve an emergency request
+// Approve a request and broadcast it to available help providers.
 const approveRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -265,6 +337,30 @@ const approveRequest = async (req, res) => {
       "Help Request Approved",
       `Your help request "${result.rows[0].title}" has been approved by the manager.`,
     );
+
+    // Broadcast notification to all registered providers/users ready to help in HelpBridge (Requirement 2)
+    const providersRes = await pool.query(
+      `
+      SELECT id
+      FROM users
+      WHERE (
+          role = 'provider'
+          OR role IN ('seeker', 'user')
+        )
+        AND availability_status = 'available'
+        AND id <> $1
+    `,
+      [result.rows[0].requester_id],
+    );
+    for (const prov of providersRes.rows) {
+      await createNotification(
+        prov.id,
+        result.rows[0].id,
+        "broadcast_request",
+        "New Help Request Available",
+        `Request: "${result.rows[0].title}". Respond to accept the nearest available assignment.`,
+      );
+    }
 
     res.status(200).json({
       message: "Help request approved successfully",
@@ -330,9 +426,9 @@ const assignProvider = async (req, res) => {
         FROM users provider
         WHERE hr.id = $2
           AND provider.id = $1
-          AND provider.role IN ('provider', 'seeker')
+          AND provider.role IN ('provider', 'seeker', 'user')
           AND provider.id <> hr.requester_id
-          AND (provider.role = 'seeker' OR provider.verification_status = 'verified')
+          AND (provider.role IN ('seeker', 'user') OR provider.verification_status = 'verified')
           AND provider.availability_status = 'available'
           AND hr.status = 'approved'
           AND hr.assigned_provider_id IS NULL
@@ -393,12 +489,18 @@ const completeRequest = async (req, res) => {
     }
 
     const request = result.rows[0];
+    if (request.assigned_provider_id) {
+      await pool.query(
+        `UPDATE users SET availability_status = 'available' WHERE id = $1`,
+        [request.assigned_provider_id],
+      );
+    }
     await createNotification(
       request.requester_id,
       request.id,
       "request_completed",
       "Help Request Completed",
-      "Your help request has been completed successfully.",
+      "Your emergency help request has been completed successfully. Please proceed to payment.",
     );
 
     res.status(200).json({
@@ -448,6 +550,7 @@ const getDashboardStats = async (req, res) => {
 };
 
 module.exports = {
+  getPendingAssignments,
   getPendingRequests,
   getEmergencyRequests,
   getNonEmergencyRequests,

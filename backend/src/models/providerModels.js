@@ -115,7 +115,8 @@ const acceptHelpRequest = async (requestId, providerId) => {
                 availability_status = 'busy',
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
-              AND role IN ('provider', 'seeker')
+              AND role IN ('provider', 'seeker', 'user')
+              AND availability_status = 'available'
             RETURNING id, availability_status;
         `;
 

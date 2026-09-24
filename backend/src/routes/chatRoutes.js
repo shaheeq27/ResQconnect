@@ -9,8 +9,13 @@ const {
   getUnreadCount,
 } = require("../controllers/messageController");
 
+const { handleChatbotQuery } = require("../controllers/chatbotController");
+
 const authMiddleware = require("../middleware/authMiddleware");
 const chatMiddleware = require("../middleware/chatMiddleware");
+
+// AI Chatbot endpoint
+router.post("/assistant", handleChatbotQuery);
 
 // Send a message
 router.get(
