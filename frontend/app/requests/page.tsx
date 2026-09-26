@@ -14,7 +14,8 @@ type RequestStatus =
   | "accepted"
   | "in_progress"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "bargaining";
 
 type HelpRequest = {
   id: number;
@@ -37,6 +38,7 @@ const statusLabels: Record<RequestStatus, string> = {
   in_progress: "In progress",
   completed: "Completed",
   cancelled: "Cancelled",
+  bargaining: "Negotiating price",
 };
 
 const statusStyles: Record<RequestStatus, string> = {
@@ -48,6 +50,7 @@ const statusStyles: Record<RequestStatus, string> = {
   in_progress: "border-cyan-200 bg-cyan-50 text-cyan-700",
   completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
   cancelled: "border-slate-300 bg-slate-100 text-slate-700",
+  bargaining: "border-amber-300 bg-amber-50 text-amber-800",
 };
 
 export default function RequestsPage() {
