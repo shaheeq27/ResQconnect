@@ -108,7 +108,7 @@ const acceptHelpRequest = async (requestId, providerId) => {
       throw new Error("Request is not available for acceptance");
     }
 
-    // Change provider availability to busy
+    // Mark busy (KNN assignment may already have set busy before the provider accepts)
     const providerQuery = `
             UPDATE users
             SET
@@ -116,7 +116,7 @@ const acceptHelpRequest = async (requestId, providerId) => {
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
               AND role IN ('provider', 'seeker', 'user')
-              AND availability_status = 'available'
+              AND availability_status IN ('available', 'busy')
             RETURNING id, availability_status;
         `;
 

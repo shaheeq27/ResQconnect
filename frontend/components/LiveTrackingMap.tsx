@@ -151,15 +151,27 @@ export default function LiveTrackingMap({ requestId }: LiveTrackingMapProps) {
         )}
       </div>
 
-      {/* Telemetry Footer Info */}
-      <div className="bg-slate-950 px-4 py-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-        <span>Updated: {lastUpdated.toLocaleTimeString()}</span>
-        <button
-          onClick={fetchTracking}
-          className="text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
+      {/* Directions + footer */}
+      <div className="bg-slate-950 px-4 py-3 border-t border-slate-800/80 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${seekerLat},${seekerLon}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-500 transition"
         >
-          <RefreshCw className="w-3 h-3" /> Sync Now
-        </button>
+          <Navigation className="w-4 h-4" />
+          Get turn-by-turn directions
+        </a>
+        <div className="flex items-center justify-between gap-3 text-xs text-slate-500 sm:justify-end">
+          <span>Updated: {lastUpdated.toLocaleTimeString()}</span>
+          <button
+            type="button"
+            onClick={fetchTracking}
+            className="text-indigo-400 hover:text-indigo-300 transition flex items-center gap-1 cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" /> Sync Now
+          </button>
+        </div>
       </div>
     </div>
   );

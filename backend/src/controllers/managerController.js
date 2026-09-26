@@ -6,7 +6,7 @@ const getPendingAssignments = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
-        hr.id AS request_id, hr.title, hr.address,
+        hr.id AS request_id, hr.title, hr.address, hr.request_type,
         hr.latitude AS request_latitude, hr.longitude AS request_longitude,
         requester.name AS requester_name, pri.created_at AS interested_at,
         provider.id AS provider_id, provider.name AS provider_name,
@@ -28,6 +28,7 @@ const getPendingAssignments = async (req, res) => {
           request_id: row.request_id,
           title: row.title,
           address: row.address,
+          request_type: row.request_type,
           requester_name: row.requester_name,
           buffer_started_at: row.interested_at,
           candidates: [],
@@ -58,7 +59,7 @@ const getPendingAssignments = async (req, res) => {
         ),
         seconds_remaining: Math.max(
           0,
-          180 -
+          (assignment.request_type === "non_emergency" ? 300 : 30) -
             Math.floor(
               (Date.now() - new Date(assignment.buffer_started_at).getTime()) /
                 1000,

@@ -11,6 +11,7 @@ import {
   Clock3,
   ClipboardList,
   CreditCard,
+  DollarSign,
   Headphones,
   History,
   Home,
@@ -27,6 +28,8 @@ import {
   X,
 } from "lucide-react";
 import { apiRequest } from "../../../lib/api";
+import { formatRelativeTime } from "../../../lib/datetime";
+import BargainModal from "../../../components/BargainModal";
 
 const statusLabels = {
   pending_verification: "Pending verification",
@@ -37,6 +40,7 @@ const statusLabels = {
   in_progress: "In progress",
   completed: "Completed",
   cancelled: "Cancelled",
+  bargaining: "Negotiating price",
 };
 
 const requestTypeLabels = {
@@ -53,6 +57,7 @@ const statusClassMap = {
   in_progress: "bg-cyan-50 text-cyan-700 border-cyan-200",
   completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   cancelled: "bg-slate-200 text-slate-700 border-slate-300",
+  bargaining: "bg-amber-50 text-amber-800 border-amber-300",
 };
 
 export default function SeekerDashboard() {
@@ -60,6 +65,7 @@ export default function SeekerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [bargainRequestId, setBargainRequestId] = useState(null);
 
   useEffect(() => {
     const loadRequests = async () => {
@@ -364,16 +370,16 @@ export default function SeekerDashboard() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Link
-                      href={`/requests/${r.id}/track`}
+                      href={`/requests/${r.id}/chat`}
                       className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"
                     >
-                      <MapPin size={13} /> Track
+                      <MessageSquare size={13} /> Chat
                     </Link>
                     <Link
-                      href={`/requests/${r.id}/chat`}
+                      href="/user/notifications"
                       className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
                     >
-                      <MessageSquare size={13} /> Chat
+                      <Bell size={13} /> View Notifications
                     </Link>
                   </div>
                 </div>
@@ -492,10 +498,8 @@ export default function SeekerDashboard() {
                             <span className="inline-flex items-center gap-1">
                               <Clock3 size={13} className="text-slate-400" />
                               {request.created_at
-                                ? new Date(
-                                    request.created_at,
-                                  ).toLocaleDateString()
-                                : "Recently"}
+                                ? formatRelativeTime(request.created_at)
+                                : "Just now"}
                             </span>
                           </div>
                         </div>
@@ -520,25 +524,30 @@ export default function SeekerDashboard() {
                                 Pay for Help
                               </Link>
                             ) : null}
+                            {request.request_type === "non_emergency" &&
+                             ["approved", "bargaining"].includes(request.status) ? (
+                              <button
+                                type="button"
+                                onClick={() => setBargainRequestId(request.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-400 shadow-sm transition"
+                              >
+                                <DollarSign size={15} />
+                                Negotiate
+                                {request.status === "bargaining" && (
+                                  <span className="ml-0.5 h-2 w-2 rounded-full bg-white animate-pulse" />
+                                )}
+                              </button>
+                            ) : null}
                             {(request.status === "assigned" ||
                             request.status === "accepted" ||
                             request.status === "in_progress") ? (
-                              <>
-                                <Link
-                                  href={`/requests/${request.id}/track`}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
-                                >
-                                  <MapPin size={15} />
-                                  Track
-                                </Link>
-                                <Link
-                                  href={`/requests/${request.id}/chat`}
-                                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
-                                >
-                                  <MessageSquare size={16} />
-                                  Chat
-                                </Link>
-                              </>
+                              <Link
+                                href="/user/notifications"
+                                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                              >
+                                <Bell size={15} />
+                                Notifications
+                              </Link>
                             ) : null}
                             <Link
                               href={`/requests/${request.id}`}
@@ -620,6 +629,14 @@ export default function SeekerDashboard() {
           </div>
         </div>
       </main>
+      {bargainRequestId !== null && (
+        <BargainModal
+          requestId={bargainRequestId}
+          isOpen={true}
+          onClose={() => setBargainRequestId(null)}
+          onAgreed={() => setBargainRequestId(null)}
+        />
+      )}
     </div>
   );
 }

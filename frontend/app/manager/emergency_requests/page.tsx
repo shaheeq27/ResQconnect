@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiRequest } from "../../../lib/api";
 import { Eye, LoaderCircle, MapPin, Search, Siren } from "lucide-react";
+import { formatRelativeTime } from "../../../lib/datetime";
 
 type Status = "pending_verification" | "approved" | "assigned" | "accepted" | "in_progress" | "completed" | "rejected" | "cancelled";
 type Request = { id: number; title: string; emergency_type: string | null; description: string | null; address: string | null; status: Status; requester_name: string; requester_phone: string; created_at: string };
@@ -62,6 +63,5 @@ export default function EmergencyRequestsPage() {
   );
 }
 
-function formatRelativeTime(createdAt: string) { const minutes = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000)); if (minutes < 1) return "Just now"; if (minutes < 60) return `${minutes} min ago`; const hours = Math.floor(minutes / 60); return hours < 24 ? `${hours} hr ago` : `${Math.floor(hours / 24)} days ago`; }
 function Summary({ title, value }: { title: string; value: string }) { return <div className="rounded-xl border bg-white p-5 shadow-sm"><p className="text-3xl font-bold text-slate-800">{value}</p><p className="mt-1 text-sm font-semibold text-slate-600">{title}</p></div>; }
 function StatusBadge({ status }: { status: Status }) { const tone = status === "pending_verification" ? "bg-orange-50 text-orange-700" : status === "completed" ? "bg-green-50 text-green-700" : status === "rejected" || status === "cancelled" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"; return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${tone}`}>{statusLabels[status]}</span>; }

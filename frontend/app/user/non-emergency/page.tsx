@@ -62,7 +62,10 @@ export default function NonEmergencyPage() {
           <Info size={21} className="mt-0.5 shrink-0 text-blue-600"/>
           <div>
             <p className="font-semibold text-blue-800"> Non-emergency assistance </p>
-            <p className="mt-1 text-sm text-blue-700">Examples include vehicle breakdowns, transport assistance,basic roadside help, and other general assistance. </p>
+            <p className="mt-1 text-sm text-blue-700">
+              Choose your help type, submit the request, and a manager will approve it. Available providers click
+              &quot;I am ready to help&quot;; HelpBridge assigns the nearest provider within 5 minutes.
+            </p>
           </div>
         </div>
         <form onSubmit={handleSubmit} className="rounded-2xl border bg-white p-6 shadow-sm sm:p-8">

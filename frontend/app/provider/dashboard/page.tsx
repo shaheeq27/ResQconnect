@@ -24,6 +24,7 @@ import {
   ChevronRight,
   CircleCheck,
   TrendingUp,
+  ArrowLeft,
 } from "lucide-react";
 import { ProviderDashboardWorkflow } from "../../../components/ProviderWorkflow";
 
@@ -77,6 +78,17 @@ function LegacyProviderDashboard() {
         {/* NAVIGATION */}
 
         <nav className="px-3 py-6">
+
+          {/* Back to Seeker Dashboard */}
+          <Link
+            href="/dashboard/seeker"
+            className="mb-3 flex items-center gap-3 rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-blue-100 transition hover:bg-white/20"
+          >
+            <ArrowLeft size={17} />
+            Seeker Dashboard
+          </Link>
+
+          <div className="mb-3 border-t border-white/10" />
 
           <SidebarItem
             href="/provider/dashboard"

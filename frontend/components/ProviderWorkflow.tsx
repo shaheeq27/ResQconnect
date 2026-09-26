@@ -7,6 +7,7 @@ import { MapPin, Send } from "lucide-react";
 import BargainModal from "./BargainModal";
 import LiveTrackingMap from "./LiveTrackingMap";
 import socket from "../lib/socket";
+import { formatRelativeTime } from "../lib/datetime";
 
 type Request = {
   id: number;
@@ -146,7 +147,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
 
 function RequestCard({ request, action }: { request: Request; action?: React.ReactNode }) {
   const mapUrl = request.latitude != null && request.longitude != null ? `https://www.google.com/maps/search/?api=1&query=${request.latitude},${request.longitude}` : null;
-  return <article className="flex flex-col gap-4 rounded-xl border bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold text-slate-900">{request.title}</h2><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{statusLabels[request.status] || request.status}</span></div><p className="mt-2 text-sm text-slate-600">{request.description || "Help requested"}</p><p className="mt-2 text-xs text-slate-500">{request.requester_name || "Requester"} · {request.address || "Location unavailable"}</p>{mapUrl && <a className="mt-2 inline-block text-xs font-semibold text-teal-700" href={mapUrl} target="_blank" rel="noreferrer">Open location in Google Maps</a>}</div>{action}</article>;
+  return <article className="flex flex-col gap-4 rounded-xl border bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-bold text-slate-900">{request.title}</h2><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{statusLabels[request.status] || request.status}</span></div><p className="mt-2 text-sm text-slate-600">{request.description || "Help requested"}</p><p className="mt-2 text-xs text-slate-500">{request.requester_name || "Requester"} · {request.address || "Location unavailable"} · {formatRelativeTime(request.created_at)}</p>{mapUrl && <a className="mt-2 inline-block text-xs font-semibold text-teal-700" href={mapUrl} target="_blank" rel="noreferrer">Open location in Google Maps</a>}</div>{action}</article>;
 }
 
 export function ProviderDashboardWorkflow() {
@@ -187,12 +188,16 @@ export function ProviderAvailableWorkflow() {
         { method: "POST" },
         localStorage.getItem("token")
       );
-      alert(data.message || "Interest recorded! HelpBridge will assign the nearest provider in ~30 seconds.");
+      alert(data.message || "Interest recorded! HelpBridge will assign the nearest provider soon.");
       await reload();
     } catch (requestError) {
-      setActionError(
-        requestError instanceof Error ? requestError.message : "Unable to express interest."
-      );
+      const msg = requestError instanceof Error ? requestError.message : "Unable to express interest.";
+      // If busy with another request, show a prominent alert
+      if (msg.includes("currently handling")) {
+        setActionError(`🚫 ${msg}`);
+      } else {
+        setActionError(msg);
+      }
     } finally {
       setBusyId(null);
     }
@@ -299,7 +304,6 @@ export function ProviderAvailableWorkflow() {
       {bargainRequest && (
         <BargainModal
           requestId={bargainRequest.id}
-          providerId={0}
           isOpen={Boolean(bargainRequest)}
           onClose={() => setBargainRequest(null)}
           onAgreed={() => reload()}
@@ -312,7 +316,7 @@ export function ProviderAvailableWorkflow() {
 export function ProviderActiveWorkflow({ completedOnly = false }: { completedOnly?: boolean }) {
   const { requests, error, loading } = useProviderRequests();
   const filtered = requests.filter((request) => completedOnly ? request.status === "completed" : ["assigned", "accepted", "in_progress"].includes(request.status));
-  useLiveProviderLocation(!completedOnly && filtered.some((request) => ["accepted", "in_progress"].includes(request.status)), filtered.find(r => ["accepted", "in_progress"].includes(r.status))?.id);
+  useLiveProviderLocation(!completedOnly && filtered.some((request) => ["assigned", "accepted", "in_progress"].includes(request.status)), filtered.find(r => ["assigned", "accepted", "in_progress"].includes(r.status))?.id);
   return <Shell title={completedOnly ? "Completed help" : "My active help"}><div className="mt-8 space-y-3">{error && <p className="text-sm text-red-600">{error}</p>}{loading && <p className="text-sm text-slate-500">Loading requests...</p>}{!loading && filtered.length === 0 && <p className="rounded-xl border bg-white p-8 text-center text-sm text-slate-500">No requests in this section.</p>}{filtered.map((request) => <RequestCard key={request.id} request={request} action={<Link className="rounded-lg border px-4 py-2 text-sm font-semibold text-blue-700" href={`/provider/requests/${request.id}`}>Open</Link>} />)}</div></Shell>;
 }
 
@@ -322,7 +326,7 @@ export function ProviderRequestWorkflow({ requestId }: { requestId: string }) {
   const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  useLiveProviderLocation(Boolean(request && ["accepted", "in_progress"].includes(request.status)), request?.id);
+  useLiveProviderLocation(Boolean(request && ["assigned", "accepted", "in_progress"].includes(request.status)), request?.id);
 
   const update = async (operation: "start" | "complete") => {
     setBusy(true); setActionError("");

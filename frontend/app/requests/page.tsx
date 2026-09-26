@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ClipboardList, MapPin, RefreshCw, Siren, Wrench } from "lucide-react";
+import { ArrowLeft, ClipboardList, DollarSign, MapPin, RefreshCw, Siren, Wrench } from "lucide-react";
 import { apiRequest } from "../../lib/api";
+import BargainModal from "../../components/BargainModal";
 
 type RequestStatus =
   | "pending_verification"
@@ -54,6 +55,7 @@ export default function RequestsPage() {
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [bargainRequestId, setBargainRequestId] = useState<number | null>(null);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -168,11 +170,32 @@ export default function RequestsPage() {
                   {request.latitude != null && request.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${request.latitude},${request.longitude}`} target="_blank" rel="noreferrer" className="font-semibold text-teal-700">Open map</a>}
                 </div>
                 {request.status === "completed" && <Link href={`/payment?requestId=${request.id}`} className="mt-4 inline-flex rounded-lg bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800">Pay for completed help</Link>}
+                {request.request_type === "non_emergency" && ["approved", "bargaining"].includes(request.status) && (
+                  <button
+                    type="button"
+                    onClick={() => setBargainRequestId(request.id)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500 transition"
+                  >
+                    <DollarSign size={15} /> Negotiate Price
+                    {request.status === "bargaining" && (
+                      <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">Active</span>
+                    )}
+                  </button>
+                )}
               </article>
             ))}
           </div>
         )}
       </div>
+
+      {bargainRequestId !== null && (
+        <BargainModal
+          requestId={bargainRequestId}
+          isOpen={true}
+          onClose={() => { setBargainRequestId(null); void loadRequests(); }}
+          onAgreed={() => { setBargainRequestId(null); void loadRequests(); }}
+        />
+      )}
     </main>
   );
 }

@@ -16,7 +16,13 @@
 //});
 
 //module.exports = pool;
-const { Pool } = require("pg");
+const { Pool, types } = require("pg");
+
+// TIMESTAMP WITHOUT TIME ZONE from Neon/Postgres is UTC; parse as UTC in Node.
+types.setTypeParser(1114, (value) => {
+  if (value === null) return null;
+  return new Date(`${String(value).replace(" ", "T")}Z`);
+});
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

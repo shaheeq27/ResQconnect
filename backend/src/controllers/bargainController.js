@@ -13,8 +13,8 @@ const submitOffer = async (req, res) => {
     const { request_id, provider_id, offered_price, round_number } = req.body;
     const userId = req.user.id;
 
-    if (!request_id || !provider_id || !offered_price || parseFloat(offered_price) <= 0) {
-      return res.status(400).json({ message: "Invalid request, provider, or price." });
+    if (!request_id || !offered_price || parseFloat(offered_price) <= 0) {
+      return res.status(400).json({ message: "Invalid request or price." });
     }
 
     // Check request existence
@@ -24,9 +24,21 @@ const submitOffer = async (req, res) => {
     }
 
     const helpReq = reqResult.rows[0];
-    const isSeeker = userId === helpReq.requester_id;
+    const isSeeker = Number(userId) === Number(helpReq.requester_id);
     const sender_role = isSeeker ? "seeker" : "provider";
     const seeker_id = helpReq.requester_id;
+
+    const effectiveProviderId = isSeeker
+      ? Number(provider_id)
+      : Number(userId);
+
+    if (!Number.isInteger(effectiveProviderId) || effectiveProviderId <= 0) {
+      return res.status(400).json({
+        message: isSeeker
+          ? "A valid provider is required for seeker counter-offers."
+          : "Could not identify provider account.",
+      });
+    }
 
     // Update status to bargaining if needed
     if (helpReq.status === 'approved' || helpReq.status === 'pending_verification') {
@@ -35,7 +47,7 @@ const submitOffer = async (req, res) => {
 
     const offer = await createBargainOffer({
       request_id,
-      provider_id: Number(provider_id),
+      provider_id: effectiveProviderId,
       seeker_id,
       sender_role,
       offered_price: parseFloat(offered_price),
@@ -43,7 +55,7 @@ const submitOffer = async (req, res) => {
     });
 
     // Notify counterpart
-    const targetUserId = isSeeker ? Number(provider_id) : seeker_id;
+    const targetUserId = isSeeker ? effectiveProviderId : seeker_id;
     await createNotification(
       targetUserId,
       request_id,

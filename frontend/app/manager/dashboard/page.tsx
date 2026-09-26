@@ -7,6 +7,7 @@ import {
   Siren, ClipboardCheck, Activity, Users, BarChart3, ChevronRight, MapPin, Eye, CheckCircle, Clock, ShieldCheck,
   AlertTriangle, CalendarDays,
 } from "lucide-react";
+import { formatRelativeTime } from "../../../lib/datetime";
 
 type PendingRequest = {
   id: number;
@@ -25,21 +26,6 @@ type DashboardStats = {
   total_count: number;
   unread_notifications: number;
 };
-
-function formatRelativeTime(createdAt: string) {
-  const elapsedMinutes = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000),
-  );
-
-  if (elapsedMinutes < 1) return "Just now";
-  if (elapsedMinutes < 60) return `${elapsedMinutes} min ago`;
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `${elapsedHours} hr ago`;
-
-  return `${Math.floor(elapsedHours / 24)} days ago`;
-}
 
 function EmergencyIcon({ type }: { type: string | null }) {
   const iconProps = { size: 20 };

@@ -233,6 +233,22 @@ const expressInterestAndAssignKNN = async (req, res) => {
       return res.status(409).json({ message: `GPS location is stale (last update: ${diag.last_located_at}). Please keep the page open for GPS to refresh.` });
     }
 
+    // *** BUSY CHECK: Prevent provider from accepting multiple requests ***
+    const activeRequestRes = await pool.query(
+      `SELECT hr.id, hr.title FROM help_requests hr
+       WHERE hr.assigned_provider_id = $1
+         AND hr.status IN ('assigned', 'accepted', 'in_progress')
+       LIMIT 1`,
+      [req.user.id],
+    );
+    if (activeRequestRes.rows.length > 0) {
+      await client.query("ROLLBACK");
+      const activeReq = activeRequestRes.rows[0];
+      return res.status(409).json({
+        message: `You are currently handling another request (#${activeReq.id}: "${activeReq.title}"). Please complete or cancel it before accepting a new one.`,
+      });
+    }
+
     // Auto-set provider as available when they express interest
     await client.query(
       `UPDATE users SET availability_status = 'available', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -252,12 +268,16 @@ const expressInterestAndAssignKNN = async (req, res) => {
       id,
       "provider_interest",
       "Provider Ready to Help",
-      "A provider is ready to help. HelpBridge will select the closest interested provider in about 30 seconds.",
+      helpReq.request_type === "emergency"
+        ? "A provider is ready to help. HelpBridge will select the closest interested provider in about 30 seconds."
+        : "A provider is ready to help. HelpBridge will assign the nearest provider within 5 minutes.",
     );
 
     res.status(202).json({
       message:
-        "Your interest is recorded. HelpBridge will assign the nearest provider in about 30 seconds.",
+        helpReq.request_type === "emergency"
+          ? "Your interest is recorded. HelpBridge will assign the nearest provider in about 30 seconds."
+          : "Your interest is recorded. HelpBridge will assign the nearest provider within 5 minutes.",
       request: helpReq,
     });
   } catch (error) {
@@ -284,8 +304,17 @@ const finalizeProviderInterests = async () => {
      FROM help_requests hr
      JOIN provider_request_interests pri ON pri.request_id = hr.id
      WHERE hr.status = 'approved'
-     GROUP BY hr.id
-     HAVING MIN(pri.created_at) <= CURRENT_TIMESTAMP - INTERVAL '30 seconds'`,
+     GROUP BY hr.id, hr.request_type
+     HAVING (
+       (hr.request_type = 'emergency'
+         AND MIN(pri.created_at) <= CURRENT_TIMESTAMP - INTERVAL '30 seconds')
+       OR
+       (hr.request_type = 'non_emergency'
+         AND MIN(pri.created_at) <= CURRENT_TIMESTAMP - INTERVAL '5 minutes')
+       OR
+       (hr.request_type NOT IN ('emergency', 'non_emergency')
+         AND MIN(pri.created_at) <= CURRENT_TIMESTAMP - INTERVAL '30 seconds')
+     )`,
   );
 
   for (const row of pending.rows) {
@@ -370,7 +399,7 @@ const finalizeProviderInterests = async () => {
       const totalAssigned = alreadyAssigned + ranked.length;
       if (totalAssigned >= needed) {
         await client.query(
-          `UPDATE help_requests SET status = 'accepted', updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          `UPDATE help_requests SET status = 'assigned', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'approved'`,
           [request.id],
         );
       }

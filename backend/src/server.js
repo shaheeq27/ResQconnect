@@ -313,6 +313,20 @@ const runStartupMigrations = async () => {
       UNIQUE (request_id, provider_id)
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bargain_offers (
+      id SERIAL PRIMARY KEY,
+      request_id INTEGER NOT NULL REFERENCES help_requests(id) ON DELETE CASCADE,
+      provider_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      seeker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      sender_role VARCHAR(20) NOT NULL,
+      offered_price DECIMAL(10, 2) NOT NULL,
+      status VARCHAR(20) DEFAULT 'pending',
+      round_number INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 };
 
 const startServer = async () => {
